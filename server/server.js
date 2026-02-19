@@ -67,6 +67,10 @@ app.use(cors({
 // Middleware configuration
 app.use(express.json());
 app.use(cookieParser());
+
+// Health Check
+app.get('/api/health', (req, res) => res.json({ success: true, message: "API is reachable" }));
+
 // API Routes
 app.use('/api/user', userRouter)
 app.use('/api/seller', sellerRouter)
