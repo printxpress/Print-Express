@@ -4,7 +4,6 @@ const authSeller = async (req, res, next) => {
     const { sellerToken } = req.cookies;
 
     if (!sellerToken) {
-        console.log('Seller Auth Failure: No sellerToken found in cookies');
         return res.json({ success: false, message: 'Not Authorized' });
     }
 
@@ -22,15 +21,12 @@ const authSeller = async (req, res, next) => {
             req.sellerRole = role || (isAdmin ? 'admin' : 'billing_manager');
             next();
         } else {
-            console.log('Seller Auth Failure: Invalid role or email mismatch');
             return res.json({ success: false, message: 'Not Authorized' });
         }
 
     } catch (error) {
-        console.log('Seller Auth Error:', error.message);
         res.json({ success: false, message: error.message });
     }
-
 }
 
 export const authAdmin = async (req, res, next) => {
