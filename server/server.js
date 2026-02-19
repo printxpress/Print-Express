@@ -70,7 +70,7 @@ app.use('/api/system', systemRouter)
 app.use('/api/banner', bannerRouter)
 
 // Serve static files from React build in production
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
     const clientBuildPath = path.join(__dirname, '../client/dist');
     app.use(express.static(clientBuildPath));
 
@@ -82,10 +82,14 @@ if (process.env.NODE_ENV === 'production') {
     app.get('/', (req, res) => res.send("API is Working"));
 }
 
-app.listen(port, '0.0.0.0', () => {
-    console.log('\n╔══════════════════════════════════════╗');
-    console.log('║  🖨️  Print Express Server Running    ║');
-    console.log(`║  🌐 http://localhost:${port}            ║`);
-    console.log('║  📡 API Ready                        ║');
-    console.log('╚══════════════════════════════════════╝\n');
-})
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+    app.listen(port, '0.0.0.0', () => {
+        console.log('\n╔══════════════════════════════════════╗');
+        console.log('║  🖨️  Print Express Server Running    ║');
+        console.log(`║  🌐 http://localhost:${port}            ║`);
+        console.log('║  📡 API Ready                        ║');
+        console.log('╚══════════════════════════════════════╝\n');
+    });
+}
+
+export default app;
