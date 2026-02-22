@@ -2,6 +2,11 @@ import './polyfill.js';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import mongoSanitize from 'express-mongo-sanitize';
+import xss from 'xss-clean';
+import hpp from 'hpp';
 import connectDB from './configs/db.js';
 import 'dotenv/config';
 import userRouter from './routes/userRoute.js';
@@ -33,6 +38,12 @@ const port = process.env.PORT || 4000;
 await connectDB()
 await connectCloudinary()
 
+// 1. Set Security HTTP Headers (Helmet)
+app.use(helmet({
+    contentSecurityPolicy: false, // Ensure this doesn't break external assets like Razorpay/Cloudinary
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
@@ -48,9 +59,27 @@ app.use(cors({
     credentials: true
 }));
 
+// 2. Global Rate Limiting (Brute Force Protection)
+const limiter = rateLimit({
+    max: 1000, // Limit each IP to 1000 requests per windowMs
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    message: 'Too many requests from this IP, please try again in 15 minutes.'
+});
+app.use('/api', limiter);
+
 // Middleware configuration
-app.use(express.json());
+app.use(express.json({ limit: '10kb' })); // Limit body payload to prevent DoS
 app.use(cookieParser());
+
+// 3. Data Sanitization against NoSQL Query Injection
+app.use(mongoSanitize());
+
+// 4. Data Sanitization against XSS
+app.use(xss());
+
+// 5. Prevent HTTP Parameter Pollution
+app.use(hpp());
+
 // API Routes
 app.use('/api/user', userRouter)
 app.use('/api/seller', sellerRouter)

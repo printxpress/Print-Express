@@ -17,6 +17,8 @@ const userSchema = new mongoose.Schema({
     },
     walletBalance: { type: Number, default: 0, min: 0 },
     cart: { type: Object, default: {} },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+    referralCode: { type: String, unique: true, sparse: true },
     lastLogin: Date
 }, { timestamps: true, minimize: false });
 

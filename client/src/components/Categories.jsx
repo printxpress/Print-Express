@@ -6,8 +6,8 @@ const services = [
   { name: 'Color Printing', icon: '🌈', desc: 'Vibrant, high-quality color prints to make your documents stand out.', price: 'From ₹8/page', link: '/print', color: 'orange' },
   { name: 'Spiral Binding', icon: '📚', desc: 'Secure and professional spiral binding for reports, notebooks, and more.', price: 'From ₹15', link: '/print', color: 'purple' },
   { name: 'Chart Binding', icon: '📊', desc: 'Specialized binding for large charts, maps, and engineering drawings.', price: 'From ₹10', link: '/print', color: 'green' },
-  { name: 'Bulk Printing', icon: '🖨️', desc: 'Large volume printing for offices, schools, and events at discounted rates.', price: 'Custom Quote', link: '/print', color: 'red' },
-  { name: 'Express Delivery', icon: '🚀', desc: 'Same-day printing and delivery to your doorstep across India.', price: 'From ₹40', link: '/print', color: 'teal' }
+  { name: 'Bulk Printing', icon: '🖨️', desc: 'Large volume printing for offices, schools, and events at discounted rates.', price: 'Custom Quote', link: '/print', color: 'blue' },
+  { name: 'Express Delivery', icon: '🚀', desc: 'Same-day printing and delivery to your doorstep across India.', price: 'From ₹40', link: '#estimator', color: 'teal' }
 ]
 
 const getColorClasses = (color) => {

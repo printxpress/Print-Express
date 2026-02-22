@@ -89,6 +89,7 @@ const Customers = () => {
                                 <th className="text-left p-4">Customer</th>
                                 <th className="text-left p-4">Phone</th>
                                 <th className="text-left p-4">City</th>
+                                <th className="text-left p-4">Referred By</th>
                                 <th className="text-center p-4">Orders</th>
                                 <th className="text-right p-4">Total Spent</th>
                                 <th className="text-right p-4">Joined</th>
@@ -110,6 +111,16 @@ const Customers = () => {
                                     </td>
                                     <td className="p-4 font-mono text-xs">{customer.phone}</td>
                                     <td className="p-4">{customer.city || '-'}</td>
+                                    <td className="p-4">
+                                        {customer.referredBy ? (
+                                            <div className="flex flex-col">
+                                                <span className="font-semibold text-xs">{customer.referredBy.name}</span>
+                                                <span className="text-[10px] text-text-muted">{customer.referredBy.phone}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-gray-400">Direct</span>
+                                        )}
+                                    </td>
                                     <td className="p-4 text-center">
                                         <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-bold">{customer.orders || 0}</span>
                                     </td>

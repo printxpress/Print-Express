@@ -45,17 +45,21 @@ const DeliveryEstimator = () => {
     };
 
     const getDeliveryEstimate = () => {
-        if (!location.district || !pricingRules) return null;
+        if (!location.district) return null;
 
-        const rules = pricingRules.rules;
-        const tiers = rules?.delivery_tiers || { tier_a: 40, tier_b: 60, tier_c: 80, tier_d: 150 };
+        const rules = pricingRules?.rules || {
+            delivery_tiers: { tier_a: 40, tier_b: 60, tier_c: 80, tier_d: 150 }
+        };
+        const tiers = rules.delivery_tiers;
         let cost = tiers.tier_a;
 
-        if (pageCount >= 1000) cost = tiers.tier_d;
-        else if (pageCount > 500) cost = tiers.tier_c;
-        else if (pageCount > 200) cost = tiers.tier_b;
+        const effectivePageCount = pageCount || 1;
 
-        const time = location.state === 'Tamil Nadu' ? '1-2 Days' : '3-5 Days';
+        if (effectivePageCount >= 1000) cost = tiers.tier_d;
+        else if (effectivePageCount > 500) cost = tiers.tier_c;
+        else if (effectivePageCount > 200) cost = tiers.tier_b;
+
+        const time = '1-2 Days';
         return { cost, time };
     };
 
@@ -128,7 +132,12 @@ const DeliveryEstimator = () => {
                             <input
                                 type="number"
                                 value={pageCount}
-                                onChange={(e) => setPageCount(Number(e.target.value))}
+                                onChange={(e) => setPageCount(e.target.value === '' ? '' : Number(e.target.value))}
+                                onBlur={() => {
+                                    if (pageCount === '' || pageCount < 1 || isNaN(pageCount)) {
+                                        setPageCount(1);
+                                    }
+                                }}
                                 className="w-full h-14 px-6 rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-xl font-bold"
                                 min={1}
                             />

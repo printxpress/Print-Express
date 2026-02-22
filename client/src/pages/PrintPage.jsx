@@ -29,15 +29,9 @@ const PrintPage = () => {
     });
     const [step, setStep] = useState(1);
 
-    // Smart Binding Logic
+    // Smart Binding Sync
     useEffect(() => {
-        if (options.copies >= 20 && options.binding === 'Loose Papers') {
-            setOptions(prev => ({ ...prev, binding: 'Spiral', bindingQuantity: options.copies }));
-            toast("📦 Large order! Automatically added Spiral Binding for you.", {
-                icon: '💡',
-                style: { borderRadius: '10px', background: '#333', color: '#fff' }
-            });
-        } else if (options.binding !== 'Loose Papers') {
+        if (options.binding !== 'Loose Papers') {
             // Sync binding quantity with copies
             setOptions(prev => ({ ...prev, bindingQuantity: options.copies }));
         }
@@ -783,7 +777,7 @@ const PrintPage = () => {
                                     <div className="flex items-center gap-4">
                                         <button
                                             type="button"
-                                            onClick={() => setOptions({ ...options, copies: Math.max(1, options.copies - 1) })}
+                                            onClick={() => setOptions({ ...options, copies: Math.max(1, (options.copies || 1) - 1) })}
                                             className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 hover:from-blue-200 hover:to-blue-300 flex items-center justify-center font-bold text-blue-800 transition-all"
                                         >
                                             −
@@ -792,12 +786,20 @@ const PrintPage = () => {
                                             type="number"
                                             min="1"
                                             value={options.copies}
-                                            onChange={(e) => setOptions({ ...options, copies: Math.max(1, parseInt(e.target.value) || 1) })}
-                                            className="text-2xl font-bold w-16 text-center bg-transparent border-none focus:ring-0 p-0 appearance-none m-0"
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setOptions({ ...options, copies: val === '' ? '' : parseInt(val) || '' });
+                                            }}
+                                            onBlur={() => {
+                                                if (options.copies === '' || options.copies < 1 || isNaN(options.copies)) {
+                                                    setOptions({ ...options, copies: 1 });
+                                                }
+                                            }}
+                                            className="text-2xl font-bold w-20 text-center bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none py-1 shadow-sm"
                                         />
                                         <button
                                             type="button"
-                                            onClick={() => setOptions({ ...options, copies: options.copies + 1 })}
+                                            onClick={() => setOptions({ ...options, copies: (options.copies || 1) + 1 })}
                                             className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 hover:from-blue-200 hover:to-blue-300 flex items-center justify-center font-bold text-blue-800 transition-all"
                                         >
                                             +
@@ -848,13 +850,14 @@ const PrintPage = () => {
                                             onClick={() => canStaple && setOptions({ ...options, binding: 'Staple' })}
                                             disabled={!canStaple}
                                             title={!canStaple ? `Staple only available for ≤50 sheets (current: ${totalBillingSheets})` : 'Staple Binding'}
-                                            className={`p-3 md:p-2 rounded-xl border-2 transition-all font-bold flex flex-col items-center gap-2 md:gap-1 ${!canStaple
+                                            className={`p-3 md:p-2 rounded-xl border-2 transition-all font-bold flex flex-col items-center gap-2 md:gap-1 group relative ${!canStaple
                                                 ? 'opacity-40 cursor-not-allowed bg-slate-50 border-slate-200'
                                                 : options.binding === 'Staple'
                                                     ? 'bg-purple-50 border-purple-600'
                                                     : 'bg-white border-slate-100 hover:border-purple-300'
                                                 }`}
                                         >
+                                            <div className="absolute top-0 right-0 bg-purple-600 text-white text-[8px] px-1.5 py-0.5 rounded-bl-lg z-10">₹0.30</div>
                                             <div className="w-10 h-10 md:w-8 md:h-8 rounded overflow-hidden">
                                                 <img src={assets.staple_icon} alt="Staple" className="w-full h-full object-contain" />
                                             </div>
@@ -897,15 +900,23 @@ const PrintPage = () => {
                                         <div className="flex items-center gap-2 mt-3 p-2 bg-slate-50 rounded-lg border border-slate-100">
                                             <label className="text-[10px] font-bold text-text-muted uppercase">Binding Qty:</label>
                                             <div className="flex items-center gap-2">
-                                                <button type="button" onClick={() => setOptions({ ...options, bindingQuantity: Math.max(1, options.bindingQuantity - 1) })} className="w-6 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-xs">-</button>
+                                                <button type="button" onClick={() => setOptions({ ...options, bindingQuantity: Math.max(1, (options.bindingQuantity || 1) - 1) })} className="w-6 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-xs">-</button>
                                                 <input
                                                     type="number"
                                                     min="1"
                                                     value={options.bindingQuantity}
-                                                    onChange={(e) => setOptions({ ...options, bindingQuantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setOptions({ ...options, bindingQuantity: val === '' ? '' : parseInt(val) || '' });
+                                                    }}
+                                                    onBlur={() => {
+                                                        if (options.bindingQuantity === '' || options.bindingQuantity < 1 || isNaN(options.bindingQuantity)) {
+                                                            setOptions({ ...options, bindingQuantity: 1 });
+                                                        }
+                                                    }}
                                                     className="text-xs font-bold w-8 text-center bg-transparent border-b border-slate-300 focus:border-blue-500 focus:outline-none p-0"
                                                 />
-                                                <button type="button" onClick={() => setOptions({ ...options, bindingQuantity: options.bindingQuantity + 1 })} className="w-6 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-xs">+</button>
+                                                <button type="button" onClick={() => setOptions({ ...options, bindingQuantity: (options.bindingQuantity || 1) + 1 })} className="w-6 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-xs">+</button>
                                             </div>
                                         </div>
                                     )}

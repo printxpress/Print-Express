@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 
 const Login = () => {
 
-    const { setShowUserLogin, setUser, setIsSeller, axios, navigate } = useAppContext()
+    const { setShowUserLogin, setUser, setIsSeller, setSellerRole, axios, navigate } = useAppContext()
 
     const [loginType, setLoginType] = useState("customer"); // 'customer' or 'staff'
     const [isRegister, setIsRegister] = useState(false);
@@ -18,6 +18,7 @@ const Login = () => {
     // Staff States
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [referralCode, setReferralCode] = useState("");
 
     const [loading, setLoading] = useState(false);
 
@@ -77,7 +78,8 @@ const Login = () => {
             const { data } = await axios.post('/api/user/verify-otp', {
                 phone,
                 otp: finalOtp,
-                name: isRegister ? name : undefined
+                name: name || undefined,
+                referralCode: referralCode || undefined
             });
             if (data.success) {
                 setUser(data.user);
@@ -107,6 +109,7 @@ const Login = () => {
             const { data } = await axios.post('/api/seller/login', { email, password });
             if (data.success) {
                 setIsSeller(true);
+                setSellerRole(data.role);
                 setShowUserLogin(false);
                 toast.success(`Logged in as ${data.role}`);
                 navigate('/seller');
@@ -130,7 +133,7 @@ const Login = () => {
                         {loginType === 'customer' ? '📱' : '🔐'}
                     </div>
                     <h2 className="text-2xl font-black font-outfit text-slate-900 tracking-tight">
-                        {loginType === 'customer' ? (isRegister ? 'Create Account' : 'Welcome Back') : 'Staff Terminal'}
+                        {loginType === 'customer' ? 'Welcome to Print Express' : 'Staff Terminal'}
                     </h2>
                     {step === 'otp' ? (
                         <div className="mt-2 flex items-center justify-center gap-2 bg-blue-50 py-2 px-4 rounded-full w-fit mx-auto border border-blue-100">
@@ -141,7 +144,7 @@ const Login = () => {
                         </div>
                     ) : (
                         <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
-                            {loginType === 'customer' ? (isRegister ? 'Join Print Express' : 'Login to your account') : 'Admin & Billing Access'}
+                            {loginType === 'customer' ? 'Login or Create Account' : 'Admin & Billing Access'}
                         </p>
                     )}
                 </div>
@@ -166,19 +169,16 @@ const Login = () => {
                     {loginType === 'customer' ? (
                         step === 'phone' ? (
                             <form onSubmit={handleSendOtp} className="space-y-4">
-                                {isRegister && (
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
-                                        <input
-                                            onChange={(e) => setName(e.target.value)}
-                                            value={name}
-                                            placeholder="Enter your name"
-                                            className="input-field py-3 text-sm"
-                                            type="text"
-                                            required
-                                        />
-                                    </div>
-                                )}
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name (Optional for existing users)</label>
+                                    <input
+                                        onChange={(e) => setName(e.target.value)}
+                                        value={name}
+                                        placeholder="Enter your name"
+                                        className="input-field py-3 text-sm"
+                                        type="text"
+                                    />
+                                </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
                                     <input
@@ -190,21 +190,22 @@ const Login = () => {
                                         required
                                     />
                                 </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Referral Code (Optional)</label>
+                                    <input
+                                        onChange={(e) => setReferralCode(e.target.value)}
+                                        value={referralCode}
+                                        placeholder="PRINTXXXX"
+                                        className="input-field py-3 text-sm font-mono uppercase"
+                                        type="text"
+                                    />
+                                </div>
                                 <button
                                     disabled={loading}
                                     className="btn-primary w-full py-4 text-sm font-bold shadow-xl shadow-blue-100"
                                 >
-                                    {loading ? 'Sending OTP...' : (isRegister ? 'Register via WhatsApp' : 'Login with OTP')}
+                                    {loading ? 'Sending OTP...' : 'Login / Register via OTP'}
                                 </button>
-                                <div className="text-center">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsRegister(!isRegister)}
-                                        className="text-xs text-blue-600 font-bold hover:underline"
-                                    >
-                                        {isRegister ? 'Already have an account? Login' : "New here? Create an account"}
-                                    </button>
-                                </div>
                             </form>
                         ) : (
                             <form onSubmit={handleVerifyOtp} className="space-y-5">

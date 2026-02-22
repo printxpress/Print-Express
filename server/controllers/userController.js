@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import Order from "../models/Order.js";
+import Wallet from "../models/Wallet.js";
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -11,6 +12,11 @@ export const sendOtp = async (req, res) => {
     try {
         const { phone } = req.body;
         if (!phone) return res.json({ success: false, message: 'Phone number is required' });
+
+        // Strict validation: Must be exactly 10 digits
+        if (!/^\d{10}$/.test(phone)) {
+            return res.json({ success: false, message: 'Invalid phone number format' });
+        }
 
         // Generate a 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -32,18 +38,84 @@ export const sendOtp = async (req, res) => {
 // Verify OTP & Login/Register : /api/user/verify-otp
 export const verifyOtp = async (req, res) => {
     try {
-        const { phone, otp, name } = req.body;
+        let { phone, otp, name } = req.body;
 
         if (!phone || !otp) return res.json({ success: false, message: 'Phone and OTP are required' });
+
+        // Strict input validation
+        if (!/^\d{10}$/.test(phone)) return res.json({ success: false, message: 'Invalid phone number format' });
+        if (!/^\d{6}$/.test(otp)) return res.json({ success: false, message: 'Invalid OTP format' });
+
+        if (name) {
+            name = name.trim();
+            if (name.length > 50) return res.json({ success: false, message: 'Name too long' });
+            // Basic sanitization for name (allow letters, spaces, optional dots/dashes)
+            if (!/^[a-zA-Z\s.\-]+$/.test(name)) return res.json({ success: false, message: 'Invalid characters in name' });
+        }
 
         // DEMO MODE: Accept any OTP (bypass verification)
         // logic is implicitly bypassed as we don't check otpStore here
 
         let user = await User.findOne({ phone });
+        let isNewUser = false;
 
         if (!user) {
+            isNewUser = true;
             // New user registration
-            user = await User.create({ phone, name, role: 'customer' });
+            const referralCode = `PRINT${phone.slice(-4)}`;
+            let referredBy = null;
+
+            if (req.body.referralCode) {
+                const referrer = await User.findOne({ referralCode: req.body.referralCode.toUpperCase() });
+                if (referrer) {
+                    referredBy = referrer._id;
+                }
+            }
+
+            user = await User.create({
+                phone,
+                name: name || 'Customer',
+                role: 'customer',
+                referralCode,
+                referredBy
+            });
+
+            // Initialize Wallet and add referral rewards
+            const wallet = await Wallet.create({ userId: user._id, balance: 0, transactions: [] });
+
+            if (referredBy) {
+                // Credit referee (new user) ₹50
+                wallet.balance += 50;
+                wallet.transactions.push({
+                    type: 'credit',
+                    amount: 50,
+                    description: 'Referral signup bonus',
+                    addedBy: 'referral'
+                });
+                await wallet.save();
+
+                // Update user walletBalance field
+                user.walletBalance = wallet.balance;
+                await user.save();
+
+                // Credit referrer ₹100
+                const referrerWallet = await Wallet.findOne({ userId: referredBy });
+                if (referrerWallet) {
+                    referrerWallet.balance += 100;
+                    referrerWallet.transactions.push({
+                        type: 'credit',
+                        amount: 100,
+                        description: `Referral bonus for ${phone}`,
+                        addedBy: 'referral'
+                    });
+                    await referrerWallet.save();
+
+                    // Update referrer user model walletBalance
+                    await User.findByIdAndUpdate(referredBy, { $inc: { walletBalance: 100 } });
+                }
+            } else {
+                await wallet.save();
+            }
         }
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -136,7 +208,7 @@ export const updateProfile = async (req, res) => {
 // Get All Users (Admin) : /api/user/all
 export const getAllUsers = async (req, res) => {
     try {
-        const users = await User.find({}).sort({ createdAt: -1 }).lean();
+        const users = await User.find({}).populate('referredBy', 'name phone').sort({ createdAt: -1 }).lean();
         const orders = await Order.find({});
 
         const usersWithStats = users.map(user => {
