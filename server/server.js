@@ -55,7 +55,10 @@ const allowedOrigins = [
 
 
 app.use(cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+        // Allow all in production for now to troubleshoot, or be specific if preferred
+        callback(null, true);
+    },
     credentials: true
 }));
 
@@ -108,7 +111,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
         res.sendFile(path.join(clientBuildPath, 'index.html'));
     });
 } else {
-    app.get('/', (req, res) => res.send("API is Working"));
+    // app.get('/', (req, res) => res.send("API is Working"));
 }
 
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
