@@ -48,16 +48,25 @@ const DeliveryEstimator = () => {
         if (!location.district) return null;
 
         const rules = pricingRules?.rules || {
-            delivery_tiers: { tier_a: 40, tier_b: 60, tier_c: 80, tier_d: 150 }
+            delivery_tiers: {
+                tier_a: { rate: 40 },
+                tier_b: { rate: 60 },
+                tier_c: { rate: 80 },
+                tier_d: { rate: 150 }
+            }
         };
         const tiers = rules.delivery_tiers;
-        let cost = tiers.tier_a;
+
+        // Handle both object and number structures for backwards compatibility
+        const getRate = (tier) => typeof tier === 'object' ? (tier.rate || 0) : (tier || 0);
+
+        let cost = getRate(tiers.tier_a);
 
         const effectivePageCount = pageCount || 1;
 
-        if (effectivePageCount >= 1000) cost = tiers.tier_d;
-        else if (effectivePageCount > 500) cost = tiers.tier_c;
-        else if (effectivePageCount > 200) cost = tiers.tier_b;
+        if (effectivePageCount >= 1000) cost = getRate(tiers.tier_d);
+        else if (effectivePageCount > 500) cost = getRate(tiers.tier_c);
+        else if (effectivePageCount > 200) cost = getRate(tiers.tier_b);
 
         const time = '1-2 Days';
         return { cost, time };

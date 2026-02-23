@@ -110,26 +110,33 @@ const PricingTable = () => {
                                 </p>
                             </div>
                             <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center space-y-2">
-                                    <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest">Basic</p>
-                                    <p className="text-2xl font-black">₹{rules.delivery_tiers.tier_a}</p>
-                                    <p className="text-[10px] text-white/50">&lt; 100 Pgs</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center space-y-2">
-                                    <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest">Smart</p>
-                                    <p className="text-2xl font-black">₹{rules.delivery_tiers.tier_b}</p>
-                                    <p className="text-[10px] text-white/50">&gt; 200 Pgs</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-blue-600 border border-blue-400 text-center space-y-2 shadow-xl">
-                                    <p className="text-[10px] font-bold text-blue-100 uppercase tracking-widest">Premium</p>
-                                    <p className="text-2xl font-black">₹{rules.delivery_tiers.tier_c}</p>
-                                    <p className="text-[10px] text-blue-100/70">&gt; 500 Pgs</p>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-orange-600 border border-orange-400 text-center space-y-2 shadow-xl shadow-orange-900/20">
-                                    <p className="text-[10px] font-bold text-orange-100 uppercase tracking-widest">Bulk</p>
-                                    <p className="text-2xl font-black">₹{rules.delivery_tiers.tier_d}</p>
-                                    <p className="text-[10px] text-orange-100/70">1000+ Pgs</p>
-                                </div>
+                                {(() => {
+                                    const getRate = (tier) => typeof tier === 'object' ? (tier.rate || 0) : (tier || 0);
+                                    return (
+                                        <>
+                                            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center space-y-2">
+                                                <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest">Basic</p>
+                                                <p className="text-2xl font-black">₹{getRate(rules.delivery_tiers.tier_a)}</p>
+                                                <p className="text-[10px] text-white/50">&lt; 100 Pgs</p>
+                                            </div>
+                                            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center space-y-2">
+                                                <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest">Smart</p>
+                                                <p className="text-2xl font-black">₹{getRate(rules.delivery_tiers.tier_b)}</p>
+                                                <p className="text-[10px] text-white/50">&gt; 200 Pgs</p>
+                                            </div>
+                                            <div className="p-4 rounded-2xl bg-blue-600 border border-blue-400 text-center space-y-2 shadow-xl">
+                                                <p className="text-[10px] font-bold text-blue-100 uppercase tracking-widest">Premium</p>
+                                                <p className="text-2xl font-black">₹{getRate(rules.delivery_tiers.tier_c)}</p>
+                                                <p className="text-[10px] text-blue-100/70">&gt; 500 Pgs</p>
+                                            </div>
+                                            <div className="p-4 rounded-2xl bg-orange-600 border border-orange-400 text-center space-y-2 shadow-xl shadow-orange-900/20">
+                                                <p className="text-[10px] font-bold text-orange-100 uppercase tracking-widest">Bulk</p>
+                                                <p className="text-2xl font-black">₹{getRate(rules.delivery_tiers.tier_d)}</p>
+                                                <p className="text-[10px] text-orange-100/70">1000+ Pgs</p>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>
