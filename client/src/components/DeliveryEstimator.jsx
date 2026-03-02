@@ -47,26 +47,20 @@ const DeliveryEstimator = () => {
     const getDeliveryEstimate = () => {
         if (!location.district) return null;
 
-        const rules = pricingRules?.rules || {
-            delivery_tiers: {
-                tier_a: { rate: 40 },
-                tier_b: { rate: 60 },
-                tier_c: { rate: 80 },
-                tier_d: { rate: 150 }
-            }
-        };
-        const tiers = rules.delivery_tiers;
-
-        // Handle both object and number structures for backwards compatibility
-        const getRate = (tier) => typeof tier === 'object' ? (tier.rate || 0) : (tier || 0);
-
-        let cost = getRate(tiers.tier_a);
-
         const effectivePageCount = pageCount || 1;
+        const calcWeight = Math.ceil(effectivePageCount / 200);
 
-        if (effectivePageCount >= 1000) cost = getRate(tiers.tier_d);
-        else if (effectivePageCount > 500) cost = getRate(tiers.tier_c);
-        else if (effectivePageCount > 200) cost = getRate(tiers.tier_b);
+        let cost = 0;
+        if (calcWeight <= 3) {
+            // Tier 1: <= 3kg -> ₹35 per kg, No Slip
+            cost = 35 * calcWeight;
+        } else if (calcWeight <= 10) {
+            // Tier 2: 4-10kg -> ₹29 per kg + ₹20 Slip
+            cost = (29 * calcWeight) + 20;
+        } else {
+            // Tier 3: > 10kg -> ₹26 per kg + ₹20 Slip
+            cost = (26 * calcWeight) + 20;
+        }
 
         const time = '1-2 Days';
         return { cost, time };

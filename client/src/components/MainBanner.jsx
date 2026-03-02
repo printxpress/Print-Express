@@ -135,7 +135,7 @@ const MainBanner = () => {
             <div className='mt-6 bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-center gap-3 text-blue-800 animate-in fade-in slide-in-from-bottom-2 duration-500'>
               <span className='text-2xl'>⚡</span>
               <p className='text-sm font-semibold mb-0'>
-                Order before <span className='font-black'>1:00 PM</span> for <span className='bg-blue-200 px-2 py-0.5 rounded text-blue-900'>Same Day Delivery</span>
+                Order before <span className='font-black'>1:00 PM</span> for <span className='bg-blue-200 px-2 py-0.5 rounded text-blue-900'>Process on the Same day</span>
               </p>
             </div>
           </div>

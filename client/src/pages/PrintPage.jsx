@@ -4,6 +4,7 @@ import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
 import PrintExpressLogo from '../components/PrintExpressLogo';
 import PrintingAnimation from '../components/PrintingAnimation';
+import UpiPaymentModal from '../components/UpiPaymentModal';
 import { detectDocument, formatFileSize, getDocumentIcon } from '../utils/documentDetection';
 import { assets } from '../assets/assets';
 
@@ -76,7 +77,8 @@ const PrintPage = () => {
 
     // New state for features
     const [fulfillment, setFulfillment] = useState('delivery');
-    const [paymentMethod, setPaymentMethod] = useState('COD');
+    const [paymentMethod, setPaymentMethod] = useState('UPI');
+    const [showUpiModal, setShowUpiModal] = useState(false);
     const [couponCode, setCouponCode] = useState('');
     const [couponApplied, setCouponApplied] = useState(null);
     const [couponLoading, setCouponLoading] = useState(false);
@@ -356,6 +358,7 @@ const PrintPage = () => {
                 },
                 deliveryDetails: fulfillment === 'delivery' ? delivery : undefined,
                 paymentMethod,
+                isPaid: paymentMethod === 'UPI' || paymentMethod === 'Wallet' || paymentMethod === 'UPI+Wallet',
                 couponCode: couponApplied?.code || '',
                 couponDiscount: pricing.couponDiscount,
                 walletUsed: pricing.walletUsed,
@@ -414,6 +417,12 @@ const PrintPage = () => {
 
     return (
         <div className="py-12 max-w-6xl mx-auto space-y-12">
+            <UpiPaymentModal
+                isOpen={showUpiModal}
+                onClose={() => setShowUpiModal(false)}
+                onConfirm={handlePlaceOrder}
+                amount={pricing.total}
+            />
             {/* Header */}
             <div className="text-center space-y-4">
                 <h1 className="text-4xl md:text-5xl font-bold font-outfit bg-gradient-to-r from-blue-800 to-blue-600 bg-clip-text text-transparent">
@@ -527,11 +536,14 @@ const PrintPage = () => {
                         {/* Place Order ONLY if step 4 */}
                         {step === 4 ? (
                             <button
-                                onClick={handlePlaceOrder}
+                                onClick={() => {
+                                    if (paymentMethod === 'UPI') setShowUpiModal(true);
+                                    else handlePlaceOrder();
+                                }}
                                 disabled={loading}
                                 className="w-full py-4 text-lg font-bold rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white shadow-lg shadow-blue-200 active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
                             >
-                                {loading ? "Placing Order..." : "Confirm & Place Order 🚀"}
+                                {loading ? "Placing Order..." : (paymentMethod === 'UPI' ? "Proceed to Payment 🚀" : "Confirm & Place Order 🚀")}
                             </button>
                         ) : (
                             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-center">
@@ -1158,7 +1170,6 @@ const PrintPage = () => {
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 {[
-                                    { id: 'COD', icon: '💵', label: 'Cash on Delivery', desc: 'Pay when you receive' },
                                     { id: 'UPI', icon: '📱', label: 'UPI Payment', desc: 'Google Pay, PhonePe' },
                                     { id: 'Wallet', icon: '🪙', label: 'Wallet', desc: `Balance: ₹${walletBalance}` },
                                     { id: 'UPI+Wallet', icon: '💳', label: 'UPI + Wallet', desc: 'Split payment' },

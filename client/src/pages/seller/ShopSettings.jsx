@@ -14,7 +14,8 @@ const ShopSettings = () => {
         gstNumber: '',
         tagline: '',
         locationUrl: '',
-        deliveryBaseCharge: 40
+        deliveryBaseCharge: 40,
+        upiId: ''
     });
 
     const fetchSettings = async () => {
@@ -173,6 +174,15 @@ const ShopSettings = () => {
                                 placeholder="support@example.com"
                             />
                         </div>
+                        <div className="md:col-span-2 space-y-1">
+                            <label className="text-xs font-bold text-text-muted uppercase tracking-wider ml-1">UPI ID (for Payments)</label>
+                            <input
+                                value={settings.upiId}
+                                onChange={e => setSettings({ ...settings, upiId: e.target.value })}
+                                className="input-field"
+                                placeholder="yourname@upi"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -224,8 +234,8 @@ const ShopSettings = () => {
                         {loading ? 'Saving...' : 'Save All Settings 💾'}
                     </button>
                 </div>
-            </form>
-        </div>
+            </form >
+        </div >
     );
 };
 
