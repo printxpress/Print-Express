@@ -14,7 +14,8 @@ export const getShopSettings = async (req, res) => {
                 whatsapp: "919894957422",
                 tagline: "Quality at Speed",
                 locationUrl: "",
-                deliveryBaseCharge: 40
+                deliveryBaseCharge: 40,
+                upiId: ""
             });
         }
         res.json({ success: true, settings });
@@ -26,7 +27,7 @@ export const getShopSettings = async (req, res) => {
 // Update Shop Settings : /api/shop/update
 export const updateShopSettings = async (req, res) => {
     try {
-        const { name, address, phone, email, whatsapp, gstNumber, tagline, locationUrl, deliveryBaseCharge } = req.body;
+        const { name, address, phone, email, whatsapp, gstNumber, tagline, locationUrl, deliveryBaseCharge, upiId } = req.body;
 
         // Validate phone
         if (phone && !/^\d{10,15}$/.test(phone.replace(/\s/g, ''))) {
@@ -45,7 +46,8 @@ export const updateShopSettings = async (req, res) => {
         const settings = await ShopSettings.findOneAndUpdate({}, {
             name, address, phone, email, whatsapp, gstNumber, tagline,
             locationUrl: locationUrl || '',
-            deliveryBaseCharge
+            deliveryBaseCharge,
+            upiId
         }, { new: true, upsert: true });
 
         res.json({ success: true, message: "Settings Updated", settings });

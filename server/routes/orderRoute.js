@@ -3,6 +3,7 @@ import {
     getAllOrders,
     getUserOrders,
     placePrintOrder,
+    placeOrder,
     updateOrderStatus,
     createPosOrder,
     cleanupOldFiles,
@@ -16,6 +17,7 @@ import { upload } from '../configs/multer.js';
 const orderRouter = express.Router();
 
 orderRouter.post('/print', upload.array('files'), authUser, placePrintOrder);
+orderRouter.post('/place', authUser, placeOrder);
 orderRouter.get('/user', authUser, getUserOrders);
 orderRouter.post('/pos', authSeller, createPosOrder);
 orderRouter.get('/all', authSeller, getAllOrders);

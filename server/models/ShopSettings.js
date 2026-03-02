@@ -9,7 +9,8 @@ const shopSettingsSchema = new mongoose.Schema({
     gstNumber: { type: String, default: "" },
     tagline: { type: String, default: "Quality at Speed" },
     locationUrl: { type: String, default: "" },
-    deliveryBaseCharge: { type: Number, default: 40 }
+    deliveryBaseCharge: { type: Number, default: 40 },
+    upiId: { type: String, default: "" }
 }, { timestamps: true });
 
 const ShopSettings = mongoose.models.shopSettings || mongoose.model('shopSettings', shopSettingsSchema);
