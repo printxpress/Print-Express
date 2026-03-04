@@ -225,8 +225,8 @@ export const placeOrder = async (req, res) => {
             items, // Array of {product, quantity}
             deliveryDetails: { addressId: address },
             payment: {
-                method: paymentMethod || 'UPI',
-                isPaid: isPaid || (paymentMethod === 'UPI')
+                method: 'RAZORPAY',
+                isPaid: false
             },
             status: 'received',
             fulfillment: { method: 'delivery' }

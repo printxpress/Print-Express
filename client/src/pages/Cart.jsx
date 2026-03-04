@@ -71,6 +71,11 @@ const Cart = () => {
                         },
                         theme: {
                             color: "#2563eb"
+                        },
+                        modal: {
+                            ondismiss: function () {
+                                // Optional: logic when modal is closed
+                            }
                         }
                     };
 
