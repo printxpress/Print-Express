@@ -374,6 +374,10 @@ const PrintPage = () => {
                     });
 
                     if (razorpayData.success) {
+                        if (!window.Razorpay) {
+                            setLoading(false);
+                            return toast.error("Razorpay script not loaded. Please refresh.");
+                        }
                         const rzpOptions = {
                             key: import.meta.env.VITE_RAZORPAY_KEY_ID,
                             amount: razorpayData.razorpayOrder.amount,

@@ -611,6 +611,7 @@ export const createRazorpayOrder = async (req, res) => {
         };
 
         const razorpayOrder = await razorpay.orders.create(options);
+        console.log("Razorpay Order Created:", razorpayOrder.id, "Amount:", razorpayOrder.amount);
         res.json({ success: true, razorpayOrder });
     } catch (error) {
         console.error("Razorpay Order Error:", error);
@@ -622,6 +623,7 @@ export const createRazorpayOrder = async (req, res) => {
 export const verifyRazorpayPayment = async (req, res) => {
     try {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
+        console.log("Verifying Razorpay Payment. OrderID:", orderId, "RP OrderID:", razorpay_order_id);
 
         const body = razorpay_order_id + "|" + razorpay_payment_id;
         const expectedSignature = crypto
