@@ -36,9 +36,11 @@ const Cart = () => {
 
                 if (razorpayData.success) {
                     if (!window.Razorpay) {
+                        console.error("Razorpay script (window.Razorpay) is missing!");
                         return toast.error("Razorpay script not loaded. Please refresh.")
                     }
 
+                    console.log("Initializing Razorpay with Key:", import.meta.env.VITE_RAZORPAY_KEY_ID);
                     const options = {
                         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
                         amount: razorpayData.razorpayOrder.amount,

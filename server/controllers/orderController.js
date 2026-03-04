@@ -611,10 +611,10 @@ export const createRazorpayOrder = async (req, res) => {
         };
 
         const razorpayOrder = await razorpay.orders.create(options);
-        console.log("Razorpay Order Created:", razorpayOrder.id, "Amount:", razorpayOrder.amount);
+        console.log("SUCCESS: Razorpay Order Created:", razorpayOrder.id);
         res.json({ success: true, razorpayOrder });
     } catch (error) {
-        console.error("Razorpay Order Error:", error);
+        console.error("ERROR: Razorpay Order Creation Failed:", error);
         res.json({ success: false, message: error.message });
     }
 }
