@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useAppContext } from "../context/AppContext";
 import { assets } from "../assets/assets";
 import toast from "react-hot-toast";
-import UpiPaymentModal from "../components/UpiPaymentModal";
 
 const Cart = () => {
     const { products, currency, cartItems, removeFromCart, getCartCount, updateCartItem, navigate, getCartAmount, axios, user, setCartItems } = useAppContext()
@@ -10,34 +9,72 @@ const Cart = () => {
     const [addresses, setAddresses] = useState([])
     const [showAddress, setShowAddress] = useState(false)
     const [selectedAddress, setSelectedAddress] = useState(null)
-    const [showUpiModal, setShowUpiModal] = useState(false)
     const totalAmount = getCartAmount() + getCartAmount() * 2 / 100
 
-    const placeOrder = async () => {
+    const placeOrder = async (isPaidViaRazorpay = false) => {
         try {
             if (!selectedAddress) {
                 return toast.error("Please select an address")
             }
 
-            const formData = new FormData();
-            // In Cart.jsx, we are ordering products, but the backend expects 'files' 
-            // and 'data'. For products, files might be empty or dummy.
-            // Let's check how the backend handles product orders.
-            // Wait, looking at the codebase, products are different from print orders.
-            // But user said "remove COD and add direct payment to UPI".
-
+            // Create order first
             const { data } = await axios.post('/api/order/place', {
                 userId: user._id,
                 items: cartArray.map(item => ({ product: item._id, quantity: item.quantity })),
                 address: selectedAddress._id,
-                paymentMethod: "UPI",
-                isPaid: true
+                paymentMethod: "RAZORPAY",
+                isPaid: false // Initially false
             })
 
             if (data.success) {
-                toast.success("Order placed successfully! 🎉")
-                setCartItems({})
-                navigate('/my-orders')
+                const orderId = data.orderId;
+
+                // Initiate Razorpay
+                const { data: razorpayData } = await axios.post('/api/order/razorpay-order', {
+                    amount: totalAmount
+                });
+
+                if (razorpayData.success) {
+                    const options = {
+                        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+                        amount: razorpayData.razorpayOrder.amount,
+                        currency: razorpayData.razorpayOrder.currency,
+                        name: "Print Express",
+                        description: "Product Purchase",
+                        order_id: razorpayData.razorpayOrder.id,
+                        handler: async (response) => {
+                            try {
+                                const { data: verifyData } = await axios.post('/api/order/razorpay-verify', {
+                                    ...response,
+                                    orderId
+                                });
+
+                                if (verifyData.success) {
+                                    toast.success("Payment successful! Order placed. 🎉")
+                                    setCartItems({})
+                                    navigate('/my-orders')
+                                } else {
+                                    toast.error(verifyData.message || "Payment verification failed")
+                                }
+                            } catch (error) {
+                                toast.error("Payment verification error")
+                            }
+                        },
+                        prefill: {
+                            name: user.name,
+                            email: user.email,
+                            contact: selectedAddress.phone || user.phone
+                        },
+                        theme: {
+                            color: "#2563eb"
+                        }
+                    };
+
+                    const rzp = new window.Razorpay(options);
+                    rzp.open();
+                } else {
+                    toast.error("Could not initiate payment")
+                }
             } else {
                 toast.error(data.message)
             }
@@ -61,12 +98,6 @@ const Cart = () => {
 
     return products.length > 0 && cartItems ? (
         <div className="flex flex-col md:flex-row mt-16">
-            <UpiPaymentModal
-                isOpen={showUpiModal}
-                onClose={() => setShowUpiModal(false)}
-                onConfirm={placeOrder}
-                amount={totalAmount}
-            />
             <div className='flex-1 max-w-4xl'>
                 <h1 className="text-3xl font-medium mb-6">
                     Shopping Cart <span className="text-sm text-primary">{getCartCount()} Items</span>
@@ -143,7 +174,7 @@ const Cart = () => {
                     <p className="text-sm font-medium uppercase mt-6">Payment Method</p>
 
                     <div className="w-full border border-gray-300 bg-white px-3 py-2 mt-2 outline-none flex items-center gap-2 font-medium">
-                        <span>💳</span> UPI Payment (Auto Redirect)
+                        <span>💳</span> Online Payment (Razorpay)
                     </div>
                 </div>
 
@@ -165,7 +196,7 @@ const Cart = () => {
                     </p>
                 </div>
 
-                <button onClick={() => setShowUpiModal(true)} className="w-full py-3 mt-6 cursor-pointer bg-primary text-white font-medium hover:bg-primary-dull transition">
+                <button onClick={() => placeOrder()} className="w-full py-3 mt-6 cursor-pointer bg-primary text-white font-medium hover:bg-primary-dull transition">
                     Proceed to Payment 🚀
                 </button>
             </div>

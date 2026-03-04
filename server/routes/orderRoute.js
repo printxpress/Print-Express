@@ -8,7 +8,9 @@ import {
     createPosOrder,
     cleanupOldFiles,
     updateOrderAndRecalculate,
-    generateThermalBillPDF
+    generateThermalBillPDF,
+    createRazorpayOrder,
+    verifyRazorpayPayment
 } from '../controllers/orderController.js';
 import authUser from '../middlewares/authUser.js';
 import authSeller from '../middlewares/authSeller.js';
@@ -25,5 +27,9 @@ orderRouter.post('/update-status', authSeller, updateOrderStatus);
 orderRouter.post('/edit/:orderId', authSeller, updateOrderAndRecalculate);
 orderRouter.get('/thermal-bill/:orderId', generateThermalBillPDF);
 orderRouter.delete('/cleanup', authSeller, cleanupOldFiles);
+
+// Razorpay Routes
+orderRouter.post('/razorpay-order', authUser, createRazorpayOrder);
+orderRouter.post('/razorpay-verify', authUser, verifyRazorpayPayment);
 
 export default orderRouter;

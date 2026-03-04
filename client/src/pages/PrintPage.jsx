@@ -4,7 +4,6 @@ import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
 import PrintExpressLogo from '../components/PrintExpressLogo';
 import PrintingAnimation from '../components/PrintingAnimation';
-import UpiPaymentModal from '../components/UpiPaymentModal';
 import { detectDocument, formatFileSize, getDocumentIcon } from '../utils/documentDetection';
 import { assets } from '../assets/assets';
 
@@ -78,7 +77,6 @@ const PrintPage = () => {
     // New state for features
     const [fulfillment, setFulfillment] = useState('delivery');
     const [paymentMethod, setPaymentMethod] = useState('UPI');
-    const [showUpiModal, setShowUpiModal] = useState(false);
     const [couponCode, setCouponCode] = useState('');
     const [couponApplied, setCouponApplied] = useState(null);
     const [couponLoading, setCouponLoading] = useState(false);
@@ -357,8 +355,8 @@ const PrintPage = () => {
                     pickupLocation: fulfillment === 'pickup' ? 'Print Express Store, Coimbatore' : undefined
                 },
                 deliveryDetails: fulfillment === 'delivery' ? delivery : undefined,
-                paymentMethod,
-                isPaid: paymentMethod === 'UPI' || paymentMethod === 'Wallet' || paymentMethod === 'UPI+Wallet',
+                paymentMethod: paymentMethod === 'UPI' ? 'RAZORPAY' : paymentMethod,
+                isPaid: false, // Set to false initially, will be verified via Razorpay
                 couponCode: couponApplied?.code || '',
                 couponDiscount: pricing.couponDiscount,
                 walletUsed: pricing.walletUsed,
@@ -367,22 +365,84 @@ const PrintPage = () => {
 
             const { data } = await axios.post('/api/order/print', formData);
             if (data.success) {
-                toast.success("Order Placed Successfully! 🎉");
-                setFiles([]);
-                setFileMetadata([]);
-                setCouponApplied(null);
-                setCouponCode('');
-                setUseWallet(false);
-                setStep(1);
-                navigate('/order-success?orderId=' + data.orderId);
+                const orderId = data.orderId;
+
+                // If payment method is UPI (now Razorpay) and amount > 0, initiate Razorpay
+                if (paymentMethod === 'UPI' && pricing.total > 0) {
+                    const { data: razorpayData } = await axios.post('/api/order/razorpay-order', {
+                        amount: pricing.total
+                    });
+
+                    if (razorpayData.success) {
+                        const rzpOptions = {
+                            key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+                            amount: razorpayData.razorpayOrder.amount,
+                            currency: razorpayData.razorpayOrder.currency,
+                            name: "Print Express",
+                            description: "Printing Service",
+                            order_id: razorpayData.razorpayOrder.id,
+                            handler: async (response) => {
+                                try {
+                                    const { data: verifyData } = await axios.post('/api/order/razorpay-verify', {
+                                        ...response,
+                                        orderId
+                                    });
+
+                                    if (verifyData.success) {
+                                        toast.success("Payment successful! Order placed. 🎉");
+                                        setFiles([]);
+                                        setFileMetadata([]);
+                                        setCouponApplied(null);
+                                        setCouponCode('');
+                                        setUseWallet(false);
+                                        setStep(1);
+                                        navigate('/order-success?orderId=' + orderId);
+                                    } else {
+                                        toast.error(verifyData.message || "Payment verification failed");
+                                    }
+                                } catch (error) {
+                                    toast.error("Payment verification error");
+                                }
+                            },
+                            prefill: {
+                                name: user.name,
+                                email: user.email,
+                                contact: user.phone || delivery.phone
+                            },
+                            theme: {
+                                color: "#2563eb"
+                            },
+                            modal: {
+                                ondismiss: function () {
+                                    setLoading(false);
+                                }
+                            }
+                        };
+                        const rzp = new window.Razorpay(rzpOptions);
+                        rzp.open();
+                    } else {
+                        toast.error("Could not initiate payment");
+                        setLoading(false);
+                    }
+                } else {
+                    // Wallet only or free order
+                    toast.success("Order Placed Successfully! 🎉");
+                    setFiles([]);
+                    setFileMetadata([]);
+                    setCouponApplied(null);
+                    setCouponCode('');
+                    setUseWallet(false);
+                    setStep(1);
+                    navigate('/order-success?orderId=' + orderId);
+                }
             } else {
                 toast.error(data.message);
+                setLoading(false);
             }
         } catch (error) {
             console.error("Order Placement Error:", error);
             const errorMsg = error.response?.data?.message || error.message || "Error placing order";
             toast.error(errorMsg);
-        } finally {
             setLoading(false);
         }
     };
@@ -417,12 +477,6 @@ const PrintPage = () => {
 
     return (
         <div className="py-12 max-w-6xl mx-auto space-y-12">
-            <UpiPaymentModal
-                isOpen={showUpiModal}
-                onClose={() => setShowUpiModal(false)}
-                onConfirm={handlePlaceOrder}
-                amount={pricing.total}
-            />
             {/* Header */}
             <div className="text-center space-y-4">
                 <h1 className="text-4xl md:text-5xl font-bold font-outfit bg-gradient-to-r from-blue-800 to-blue-600 bg-clip-text text-transparent">
@@ -1170,9 +1224,9 @@ const PrintPage = () => {
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 {[
-                                    { id: 'UPI', icon: '📱', label: 'UPI Payment', desc: 'Google Pay, PhonePe' },
+                                    { id: 'UPI', icon: '�', label: 'Online Payment', desc: 'Secure Razorpay Checkout' },
                                     { id: 'Wallet', icon: '🪙', label: 'Wallet', desc: `Balance: ₹${walletBalance}` },
-                                    { id: 'UPI+Wallet', icon: '💳', label: 'UPI + Wallet', desc: 'Split payment' },
+                                    { id: 'UPI+Wallet', icon: '�', label: 'Split Pay', desc: 'Wallet + Razorpay' },
                                 ].map(pm => (
                                     <button
                                         type="button"

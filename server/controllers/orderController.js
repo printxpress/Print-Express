@@ -5,8 +5,16 @@ import Pricing from '../models/Pricing.js';
 import Service from '../models/Service.js';
 import Coupon from '../models/Coupon.js';
 import ShopSettings from '../models/ShopSettings.js';
-// ... existing imports ...
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
 import { v2 as cloudinary } from 'cloudinary';
+
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+// ... existing imports ...
 import PDFDocument from 'pdfkit';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -584,6 +592,58 @@ export const updateOrderStatus = async (req, res) => {
 
         res.json({ success: true, order });
     } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+}
+// Generate Razorpay Order : /api/order/razorpay-order
+export const createRazorpayOrder = async (req, res) => {
+    try {
+        const { amount } = req.body;
+
+        if (!amount || amount <= 0) {
+            return res.json({ success: false, message: "Invalid amount" });
+        }
+
+        const options = {
+            amount: Math.round(amount * 100), // Amount in paise
+            currency: "INR",
+            receipt: `receipt_${Date.now()}`
+        };
+
+        const razorpayOrder = await razorpay.orders.create(options);
+        res.json({ success: true, razorpayOrder });
+    } catch (error) {
+        console.error("Razorpay Order Error:", error);
+        res.json({ success: false, message: error.message });
+    }
+}
+
+// Verify Razorpay Payment : /api/order/razorpay-verify
+export const verifyRazorpayPayment = async (req, res) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
+
+        const body = razorpay_order_id + "|" + razorpay_payment_id;
+        const expectedSignature = crypto
+            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+            .update(body.toString())
+            .digest("hex");
+
+        if (expectedSignature === razorpay_signature) {
+            await Order.findByIdAndUpdate(orderId, {
+                'payment.isPaid': true,
+                'payment.transactionId': razorpay_payment_id,
+                'payment.razorpayOrderId': razorpay_order_id,
+                'payment.razorpayPaymentId': razorpay_payment_id,
+                'payment.razorpaySignature': razorpay_signature,
+                status: 'received'
+            });
+            res.json({ success: true, message: "Payment Verified" });
+        } else {
+            res.json({ success: false, message: "Payment Verification Failed" });
+        }
+    } catch (error) {
+        console.error("Razorpay Verify Error:", error);
         res.json({ success: false, message: error.message });
     }
 }

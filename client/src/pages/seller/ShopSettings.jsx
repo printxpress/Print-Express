@@ -14,8 +14,7 @@ const ShopSettings = () => {
         gstNumber: '',
         tagline: '',
         locationUrl: '',
-        deliveryBaseCharge: 40,
-        upiId: ''
+        deliveryBaseCharge: 40
     });
 
     const fetchSettings = async () => {
@@ -172,15 +171,6 @@ const ShopSettings = () => {
                                 onChange={e => setSettings({ ...settings, email: e.target.value })}
                                 className="input-field"
                                 placeholder="support@example.com"
-                            />
-                        </div>
-                        <div className="md:col-span-2 space-y-1">
-                            <label className="text-xs font-bold text-text-muted uppercase tracking-wider ml-1">UPI ID (for Payments)</label>
-                            <input
-                                value={settings.upiId}
-                                onChange={e => setSettings({ ...settings, upiId: e.target.value })}
-                                className="input-field"
-                                placeholder="yourname@upi"
                             />
                         </div>
                     </div>

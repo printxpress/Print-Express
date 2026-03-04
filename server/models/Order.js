@@ -42,9 +42,12 @@ const orderSchema = new mongoose.Schema({
         default: 'received'
     },
     payment: {
-        method: { type: String, enum: ['UPI', 'COD', 'Wallet', 'UPI+Wallet'] },
+        method: { type: String, enum: ['UPI', 'COD', 'Wallet', 'UPI+Wallet', 'RAZORPAY'] },
         isPaid: { type: Boolean, default: false },
-        transactionId: String
+        transactionId: String,
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        razorpaySignature: String
     },
     couponCode: { type: String },
     whatsappSent: { type: Boolean, default: false },
