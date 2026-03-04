@@ -596,14 +596,11 @@ const PrintPage = () => {
                         {/* Place Order ONLY if step 4 */}
                         {step === 4 ? (
                             <button
-                                onClick={() => {
-                                    if (paymentMethod === 'UPI') setShowUpiModal(true);
-                                    else handlePlaceOrder();
-                                }}
+                                onClick={handlePlaceOrder}
                                 disabled={loading}
                                 className="w-full py-4 text-lg font-bold rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white shadow-lg shadow-blue-200 active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
                             >
-                                {loading ? "Placing Order..." : (paymentMethod === 'UPI' ? "Proceed to Payment 🚀" : "Confirm & Place Order 🚀")}
+                                {loading ? "Placing Order..." : "Proceed to Payment 🚀"}
                             </button>
                         ) : (
                             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-center">
@@ -1230,9 +1227,9 @@ const PrintPage = () => {
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 {[
-                                    { id: 'UPI', icon: '�', label: 'Online Payment', desc: 'Secure Razorpay Checkout' },
+                                    { id: 'UPI', icon: '💳', label: 'Online Payment', desc: 'Standard Razorpay' },
                                     { id: 'Wallet', icon: '🪙', label: 'Wallet', desc: `Balance: ₹${walletBalance}` },
-                                    { id: 'UPI+Wallet', icon: '�', label: 'Split Pay', desc: 'Wallet + Razorpay' },
+                                    { id: 'UPI+Wallet', icon: '🌗', label: 'Split Pay', desc: 'Wallet + Razorpay' },
                                 ].map(pm => (
                                     <button
                                         type="button"
