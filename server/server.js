@@ -35,6 +35,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 4000;
 
+// Trust Proxy for Rate Limiting (Vercel/Railway/Load Balancers)
+app.set('trust proxy', 1);
+
 await connectDB()
 await connectCloudinary()
 
