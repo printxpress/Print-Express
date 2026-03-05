@@ -180,8 +180,22 @@ const BillingDashboard = () => {
                                             </div>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
-                                            <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">{order.printOptions?.mode || 'Service'}</span>
-                                            <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">{order.printOptions?.paperSize || 'N/A'}</span>
+                                            {Array.isArray(order.printOptions) ? (
+                                                <>
+                                                    <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold">
+                                                        📁 {order.printOptions.length} Doc(s)
+                                                    </span>
+                                                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">
+                                                        {order.printOptions[0]?.mode} | {order.printOptions[0]?.paperSize || 'A4'}
+                                                        {order.printOptions.length > 1 ? ' ...' : ''}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">{order.printOptions?.mode || 'Service'}</span>
+                                                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">{order.printOptions?.paperSize || 'N/A'}</span>
+                                                </>
+                                            )}
                                             <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">{order.fulfillment?.method || 'Pickup'}</span>
                                         </div>
                                     </div>

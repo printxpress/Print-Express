@@ -8,14 +8,22 @@ const orderSchema = new mongoose.Schema({
         fileType: String,
         pageCount: Number
     }],
-    printOptions: {
+    printOptions: [{
+        fileIndex: { type: Number, default: 0 },
         mode: { type: String, enum: ['B/W', 'Color'] },
         side: { type: String, enum: ['Single', 'Double'] },
         paperSize: { type: String, enum: ['A4', 'A3'], default: 'A4' },
-        copies: Number,
+        copies: { type: Number, default: 1 },
         binding: { type: String, enum: ['Loose Papers', 'Spiral', 'Staple', 'Hard', 'Chart'], default: 'Loose Papers' },
-        bindingQuantity: { type: Number, default: 1 }
-    },
+        bindingQuantity: { type: Number, default: 1 },
+        pagesPerSheet: { type: Number, default: 1 },
+        orientation: { type: String, default: 'Portrait' },
+        layout: { type: String, default: 'Full' },
+        pageRangeType: { type: String, default: 'All' },
+        customPages: { type: String, default: '' },
+        notes: { type: String, default: '' },
+        price: { type: Number, default: 0 }
+    }],
     pricing: {
         printingCharge: Number,
         bindingCharge: Number,

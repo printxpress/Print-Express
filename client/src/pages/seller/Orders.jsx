@@ -9,7 +9,8 @@ const Orders = () => {
     const [shopSettings, setShopSettings] = useState(null);
     const [filter, setFilter] = useState('all'); // all, online, pos
     const [editingOrder, setEditingOrder] = useState(null);
-    const [editForm, setEditForm] = useState({});
+    const [editForm, setEditForm] = useState([]);
+    const [editingFileIndex, setEditingFileIndex] = useState(0);
 
     const filteredOrders = orders.filter(o => {
         const isPos = o.files.some(f => f.fileType === 'POS Service');
@@ -90,7 +91,8 @@ const Orders = () => {
 
     const handleEditOrder = (order) => {
         setEditingOrder(order);
-        setEditForm(order.printOptions);
+        setEditForm(Array.isArray(order.printOptions) ? JSON.parse(JSON.stringify(order.printOptions)) : []);
+        setEditingFileIndex(0);
     }
 
     const saveEditOrder = async () => {
@@ -117,9 +119,7 @@ const Orders = () => {
             if (data.success) {
                 const phone = order.deliveryDetails.phone || order.userId?.phone;
                 const billUrl = `${axios.defaults.baseURL}/api/order/thermal-bill/${order._id}`;
-                const message = sellerRole === 'billing_manager'
-                    ? `*PRINT EXPRESS ORDER*\n\nOrder: #${order._id.toString().slice(-8).toUpperCase()}\n\nView Details: ${billUrl}\n\nThank you!`
-                    : `*PRINT EXPRESS BILL*\n\nOrder: #${order._id.toString().slice(-8).toUpperCase()}\nTotal: ₹${order.pricing.totalAmount.toFixed(2)}\n\nView Bill: ${billUrl}\nPay Now: ${data.paymentLink}\n\nThank you!`;
+                const message = `*PRINT EXPRESS BILL*\n\nOrder: #${order._id.toString().slice(-8).toUpperCase()}\nTotal: ₹${order.pricing.totalAmount.toFixed(2)}\n\nView Bill: ${billUrl}\nPay Now: ${data.paymentLink}\n\nThank you!`;
                 window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
             } else {
                 toast.error("Failed to generate payment link");
@@ -286,39 +286,55 @@ const Orders = () => {
 
                         <div className="space-y-3 flex-1 border-l border-border pl-8">
                             <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">ORDER CONTENT</p>
-                            <div className="space-y-2 text-sm">
-                                <p className="font-medium">{order.printOptions.mode} | {order.printOptions.paperSize || 'A4'} | {order.printOptions.side} | {order.printOptions.binding} (x{order.printOptions.bindingQuantity || 1})</p>
-                                <div className="flex flex-wrap gap-2 items-center">
-                                    <p className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block">
-                                        📄 {order.printOptions.pageRangeType === 'Custom' ? `Custom: ${order.printOptions.customPages}` : 'All Pages'}
-                                    </p>
-                                    <p className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded inline-block">
-                                        ⚖️ {order.pricing?.weight?.toFixed(2) || 0} kg
-                                    </p>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {order.files.map((file, fIdx) => (
-                                        file.url ? (
-                                            <div key={fIdx} className="flex flex-col gap-1 items-start">
-                                                <div className="flex gap-1">
-                                                    <a href={file.url} target="_blank" rel="noreferrer" className="px-2 py-1 bg-slate-900 text-white rounded text-[10px] font-bold hover:bg-black transition-colors whitespace-nowrap">View File</a>
-                                                    <a href={file.url} download={file.originalName} className="px-2 py-1 bg-slate-100 rounded text-[10px] font-bold text-primary border border-primary/20 hover:bg-primary hover:text-white transition-colors">Download</a>
-                                                </div>
-                                                <span className="text-[9px] text-text-muted font-mono truncate max-w-[200px] bg-slate-50 px-1 rounded" title={file.originalName}>
-                                                    📁 {file.originalName || `File ${fIdx + 1}`}
+                            <div className="space-y-4 text-sm">
+                                {Array.isArray(order.printOptions) ? order.printOptions.map((opt, optIdx) => (
+                                    <div key={optIdx} className="bg-slate-50/50 p-3 rounded-lg border border-slate-100 space-y-2">
+                                        <div className="flex justify-between items-start">
+                                            <p className="font-bold text-xs truncate max-w-[200px]" title={order.files[optIdx]?.originalName}>
+                                                📄 {order.files[optIdx]?.originalName || `File ${optIdx + 1}`}
+                                            </p>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-black">
+                                                    {opt.copies} COPIES
                                                 </span>
+                                                {opt.price > 0 && (
+                                                    <span className="text-[10px] font-bold text-green-600">₹{opt.price.toFixed(2)}</span>
+                                                )}
                                             </div>
-                                        ) : (
-                                            <span key={fIdx} className="px-2 py-1 bg-slate-50 rounded text-[10px] font-bold text-text-muted border border-border">POS ITEM</span>
-                                        )
-                                    ))}
-                                </div>
-                                <div className="flex gap-2 pt-2">
+                                        </div>
+                                        <p className="text-[11px] font-medium text-slate-600">
+                                            {opt.mode} | {opt.paperSize || 'A4'} | {opt.side} Sided | {opt.binding} {opt.binding !== 'Loose Papers' ? `(x${opt.bindingQuantity || 1})` : ''}
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <p className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                                                {opt.pageRangeType === 'Custom' ? `Custom: ${opt.customPages}` : 'All Pages'}
+                                            </p>
+                                            {opt.pagesPerSheet === 2 && (
+                                                <p className="text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">2 Pgs/Sheet</p>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-1 pt-1">
+                                            {order.files[optIdx]?.url && (
+                                                <>
+                                                    <a href={order.files[optIdx].url} target="_blank" rel="noreferrer" className="px-2 py-1 bg-slate-900 text-white rounded text-[9px] font-bold hover:bg-black transition-colors whitespace-nowrap">View</a>
+                                                    <a href={order.files[optIdx].url} download={order.files[optIdx].originalName} className="px-2 py-1 bg-white rounded text-[9px] font-bold text-primary border border-primary/20 hover:bg-primary hover:text-white transition-colors">Download</a>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <p className="font-medium text-red-500 italic">Legacy Order Format - Options Missing</p>
+                                )}
+
+                                <div className="flex flex-wrap gap-2 pt-2">
+                                    <p className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded inline-block">
+                                        ⚖️ Total Weight: {order.pricing?.weight?.toFixed(2) || 0} kg
+                                    </p>
                                     <button
                                         onClick={() => printFullLabel(order)}
                                         className="text-[10px] font-bold px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md active:scale-95 flex items-center gap-1"
                                     >
-                                        🚚 Full Shipping Label
+                                        🚚 Shipping Label
                                     </button>
                                 </div>
                             </div>
@@ -326,9 +342,7 @@ const Orders = () => {
 
                         <div className="space-y-4 flex-1 text-right border-l border-border pl-8 flex flex-col justify-between">
                             <div>
-                                {sellerRole !== 'billing_manager' && (
-                                    <p className="text-2xl font-bold font-outfit text-primary">₹{(order.pricing?.totalAmount || 0).toFixed(2)}</p>
-                                )}
+                                <p className="text-2xl font-bold font-outfit text-primary">₹{(order.pricing?.totalAmount || 0).toFixed(2)}</p>
                                 <p className="text-[10px] text-text-muted font-bold uppercase">Placed on {new Date(order.createdAt).toLocaleDateString()}</p>
                             </div>
                             <div className="flex flex-col gap-2">
@@ -345,12 +359,8 @@ const Orders = () => {
                                     <option value="cancelled">Mark Cancelled</option>
                                 </select>
                                 <button onClick={() => sendWANotification(order)} className="text-primary font-bold text-[10px] hover:underline">SEND STATUS WA 🔗</button>
-                                {sellerRole !== 'billing_manager' && (
-                                    <>
-                                        <button onClick={() => generateLinkAndWhatsApp(order)} className="text-green-600 font-bold text-[10px] hover:underline whitespace-nowrap">SEND BILL & PAY LINK 🏦</button>
-                                        <button onClick={() => downloadThermalBill(order._id)} className="text-slate-600 font-bold text-[10px] hover:underline">VIEW THERMAL BILL 📄</button>
-                                    </>
-                                )}
+                                <button onClick={() => generateLinkAndWhatsApp(order)} className="text-green-600 font-bold text-[10px] hover:underline whitespace-nowrap">SEND BILL & PAY LINK 🏦</button>
+                                <button onClick={() => downloadThermalBill(order._id)} className="text-slate-600 font-bold text-[10px] hover:underline">VIEW THERMAL BILL 📄</button>
                                 <button onClick={() => handleEditOrder(order)} className="mt-2 px-3 py-1 text-[10px] font-bold bg-slate-100 text-slate-700 rounded hover:bg-slate-200 transition-colors">Edit Options ⚙️</button>
                             </div>
                         </div>
@@ -360,86 +370,142 @@ const Orders = () => {
                 {/* Edit Modal */}
                 {editingOrder && (
                     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-fade-in border border-border">
-                            <div className="flex justify-between items-center mb-6">
+                        <div className="bg-white rounded-2xl p-6 max-w-xl w-full shadow-2xl animate-fade-in border border-border">
+                            <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-xl font-bold font-outfit">Edit Order Options</h3>
-                                <button onClick={() => setEditingOrder(null)} className="text-text-muted hover:text-text-main">✕</button>
+                                <button onClick={() => setEditingOrder(null)} className="text-text-muted hover:text-text-main p-2">✕</button>
                             </div>
 
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-text-muted uppercase mb-2">Printing Mode</label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {['B/W', 'Color'].map(m => (
-                                            <button
-                                                key={m}
-                                                onClick={() => setEditForm(prev => ({ ...prev, mode: m }))}
-                                                className={`py-2 rounded-lg text-sm font-bold border transition-all ${editForm.mode === m ? 'bg-primary text-white border-primary' : 'bg-slate-50 border-border text-text-muted hover:border-text-main'}`}
-                                            >
-                                                {m}
-                                            </button>
-                                        ))}
+                            {/* Document Selector inside Modal */}
+                            {editForm.length > 1 && (
+                                <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
+                                    {editForm.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setEditingFileIndex(i)}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border-2 transition-all whitespace-nowrap ${editingFileIndex === i ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-500 hover:border-blue-300'}`}
+                                        >
+                                            {editingOrder.files[i]?.originalName || `File ${i + 1}`}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="space-y-5">
+                                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full border border-blue-100 inline-block">
+                                    Editing: {editingOrder.files[editingFileIndex]?.originalName || `File ${editingFileIndex + 1}`}
+                                </p>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-text-muted uppercase mb-2">Printing Mode</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['B/W', 'Color'].map(m => (
+                                                <button
+                                                    key={m}
+                                                    onClick={() => {
+                                                        const newForm = [...editForm];
+                                                        newForm[editingFileIndex].mode = m;
+                                                        setEditForm(newForm);
+                                                    }}
+                                                    className={`py-2 rounded-lg text-xs font-bold border transition-all ${editForm[editingFileIndex]?.mode === m ? 'bg-primary text-white border-primary' : 'bg-slate-50 border-border text-text-muted hover:border-text-main'}`}
+                                                >
+                                                    {m}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div>
-                                    <label className="block text-xs font-bold text-text-muted uppercase mb-2">Paper Size</label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {['A4', 'A3'].map(s => (
-                                            <button
-                                                key={s}
-                                                onClick={() => setEditForm(prev => ({ ...prev, paperSize: s }))}
-                                                className={`py-2 rounded-lg text-sm font-bold border transition-all ${editForm.paperSize === s ? 'bg-primary text-white border-primary' : 'bg-slate-50 border-border text-text-muted hover:border-text-main'}`}
-                                            >
-                                                {s}
-                                            </button>
-                                        ))}
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-text-muted uppercase mb-2">Paper Size</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['A4', 'A3'].map(s => (
+                                                <button
+                                                    key={s}
+                                                    onClick={() => {
+                                                        const newForm = [...editForm];
+                                                        newForm[editingFileIndex].paperSize = s;
+                                                        setEditForm(newForm);
+                                                    }}
+                                                    className={`py-2 rounded-lg text-xs font-bold border transition-all ${editForm[editingFileIndex]?.paperSize === s ? 'bg-primary text-white border-primary' : 'bg-slate-50 border-border text-text-muted hover:border-text-main'}`}
+                                                >
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div>
-                                    <label className="block text-xs font-bold text-text-muted uppercase mb-2">Sides</label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {['Single', 'Double'].map(s => (
-                                            <button
-                                                key={s}
-                                                onClick={() => setEditForm(prev => ({ ...prev, side: s }))}
-                                                className={`py-2 rounded-lg text-sm font-bold border transition-all ${editForm.side === s ? 'bg-primary text-white border-primary' : 'bg-slate-50 border-border text-text-muted hover:border-text-main'}`}
-                                            >
-                                                {s}
-                                            </button>
-                                        ))}
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-text-muted uppercase mb-2">Sides</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['Single', 'Double'].map(s => (
+                                                <button
+                                                    key={s}
+                                                    onClick={() => {
+                                                        const newForm = [...editForm];
+                                                        newForm[editingFileIndex].side = s;
+                                                        setEditForm(newForm);
+                                                    }}
+                                                    className={`py-2 rounded-lg text-xs font-bold border transition-all ${editForm[editingFileIndex]?.side === s ? 'bg-primary text-white border-primary' : 'bg-slate-50 border-border text-text-muted hover:border-text-main'}`}
+                                                >
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div>
-                                    <label className="block text-xs font-bold text-text-muted uppercase mb-2">Binding</label>
-                                    <select
-                                        value={editForm.binding}
-                                        onChange={(e) => setEditForm(prev => ({ ...prev, binding: e.target.value }))}
-                                        className="w-full py-2 px-3 rounded-lg text-sm font-bold border border-border bg-slate-50"
-                                    >
-                                        <option value="None">None</option>
-                                        <option value="Spiral">Spiral</option>
-                                        <option value="Staple">Staple</option>
-                                        <option value="Hard">Hard Binding</option>
-                                    </select>
-                                </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-text-muted uppercase mb-2">Copies</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={editForm[editingFileIndex]?.copies || 1}
+                                            onChange={(e) => {
+                                                const newForm = [...editForm];
+                                                newForm[editingFileIndex].copies = parseInt(e.target.value) || 1;
+                                                setEditForm(newForm);
+                                            }}
+                                            className="w-full py-2 px-3 rounded-lg text-[11px] font-bold border border-border bg-slate-50"
+                                        />
+                                    </div>
 
-                                <div>
-                                    <label className="block text-xs font-bold text-text-muted uppercase mb-2">Binding Quantity</label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        value={editForm.bindingQuantity}
-                                        onChange={(e) => setEditForm(prev => ({ ...prev, bindingQuantity: parseInt(e.target.value) }))}
-                                        className="w-full py-2 px-3 rounded-lg text-sm font-bold border border-border bg-slate-50"
-                                    />
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-text-muted uppercase mb-2">Binding</label>
+                                        <select
+                                            value={editForm[editingFileIndex]?.binding}
+                                            onChange={(e) => {
+                                                const newForm = [...editForm];
+                                                newForm[editingFileIndex].binding = e.target.value;
+                                                setEditForm(newForm);
+                                            }}
+                                            className="w-full py-2 px-3 rounded-lg text-[11px] font-bold border border-border bg-slate-50"
+                                        >
+                                            <option value="Loose Papers">Loose Papers</option>
+                                            <option value="Spiral">Spiral</option>
+                                            <option value="Staple">Staple</option>
+                                            <option value="Chart">Chart</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-text-muted uppercase mb-2">Binding Quantity</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={editForm[editingFileIndex]?.bindingQuantity || 1}
+                                            onChange={(e) => {
+                                                const newForm = [...editForm];
+                                                newForm[editingFileIndex].bindingQuantity = parseInt(e.target.value) || 1;
+                                                setEditForm(newForm);
+                                            }}
+                                            className="w-full py-2 px-3 rounded-lg text-[11px] font-bold border border-border bg-slate-50"
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="pt-4 flex gap-3">
-                                    <button onClick={() => setEditingOrder(null)} className="flex-1 py-3 bg-slate-100 text-text-main font-bold rounded-xl hover:bg-slate-200 transition-all">Cancel</button>
-                                    <button onClick={saveEditOrder} className="flex-2 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">Save & Recalculate</button>
+                                    <button onClick={() => setEditingOrder(null)} className="flex-1 py-3 bg-slate-100 text-text-main font-bold rounded-xl hover:bg-slate-200 transition-all text-sm">Cancel</button>
+                                    <button onClick={saveEditOrder} className="flex-2 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-sm">Update Order & Recalculate 🔄</button>
                                 </div>
                             </div>
                         </div>

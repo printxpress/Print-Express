@@ -57,7 +57,6 @@ export const placePrintOrder = async (req, res) => {
         const uploadedFiles = await Promise.all(
             files.map(async (file, index) => {
                 const result = await cloudinary.uploader.upload(file.path, { resource_type: 'auto', folder: 'print_orders' });
-                // Use metadata from frontend if available, else default to 1
                 const meta = fileMetadata ? fileMetadata.find(m => m.name === file.originalname) : null;
                 return {
                     url: result.secure_url,
@@ -68,10 +67,9 @@ export const placePrintOrder = async (req, res) => {
             })
         );
 
-        // 2. Fetch Pricing Rules and Services
-        const [pricingData, services] = await Promise.all([
-            Pricing.findOne({ type: 'printing_rules' }),
-            Service.find({})
+        // 2. Fetch Pricing Rules
+        const [pricingData] = await Promise.all([
+            Pricing.findOne({ type: 'printing_rules' })
         ]);
 
         const rules = pricingData ? pricingData.rules : {
@@ -87,79 +85,95 @@ export const placePrintOrder = async (req, res) => {
             }
         };
 
-        // 3. Calculate Pricing (Server-side validation)
-        const docPages = uploadedFiles.reduce((acc, f) => acc + f.pageCount, 0);
-        const totalPages = printOptions.pageRangeType === 'Custom'
-            ? calculateCustomPageCount(printOptions.customPages)
-            : docPages;
+        // 3. Ensure printOptions is an array (backward compat)
+        const optionsArray = Array.isArray(printOptions) ? printOptions : [printOptions];
 
-        const isColor = printOptions.mode === 'Color';
-        const isDouble = printOptions.side === 'Double';
-        const isA3 = printOptions.paperSize === 'A3';
+        // 4. Calculate per-document pricing
+        let totalPrintingCharge = 0;
+        let totalBindingCharge = 0;
+        let totalSheets = 0;
 
-        // Primary Rate Logic based on Printing Rules (Backend)
-        let rate;
-        const colorKey = isColor ? 'color' : 'bw';
-        const sideKey = isDouble ? 'double' : 'single';
-        const a3SideKey = isDouble ? 'a3_double' : 'a3_single';
+        optionsArray.forEach((opts, idx) => {
+            const file = uploadedFiles[idx] || uploadedFiles[0];
+            const docPages = file.pageCount || 1;
+            const totalPages = opts.pageRangeType === 'Custom'
+                ? calculateCustomPageCount(opts.customPages)
+                : docPages;
 
-        if (isA3) {
-            rate = rules.printing[colorKey][a3SideKey] || (rules.printing[colorKey][sideKey] * 2);
-        } else {
-            rate = rules.printing[colorKey][sideKey];
-        }
+            const isColor = opts.mode === 'Color';
+            const isDouble = opts.side === 'Double';
+            const isA3 = opts.paperSize === 'A3';
 
-        // Apply Pages per Sheet Logic (Backend Sync)
-        const effectivePages = printOptions.pagesPerSheet === 2 ? Math.ceil(totalPages / 2) : totalPages;
+            const colorKey = isColor ? 'color' : 'bw';
+            const singleKey = isA3 ? 'a3_single' : 'single';
+            const doubleKey = isA3 ? 'a3_double' : 'double';
+            const singleRate = rules.printing[colorKey][singleKey] || (isColor ? 8 : 0.75);
+            const doubleRate = rules.printing[colorKey][doubleKey] || singleRate;
 
-        const printingCharge = effectivePages * (rate || (isColor ? 8 : 0.75)) * (printOptions.copies || 1);
-        const billingSheets = isDouble ? Math.ceil(effectivePages / 2) : effectivePages;
+            // Effective pages after pagesPerSheet
+            const effectivePages = opts.pagesPerSheet === 2 ? Math.ceil(totalPages / 2) : totalPages;
 
-        let bindingCharge = 0;
-        let bindingWeight = 0;
-        if (printOptions.binding === 'Spiral') {
-            const spiralRate = isA3 ? 40 : (rules.additional.binding || 15);
-            bindingCharge = spiralRate * (printOptions.bindingQuantity || 1);
-            bindingWeight = 0.1 * (printOptions.bindingQuantity || 1);
-        } else if (printOptions.binding === 'Chart') {
-            const chartRate = isA3 ? 20 : (rules.additional.chart_binding || 10);
-            bindingCharge = chartRate * (printOptions.bindingQuantity || 1);
-            bindingWeight = 0.05 * (printOptions.bindingQuantity || 1);
-        } else if (printOptions.binding === 'Staple') {
-            const stapleRate = rules.additional?.staple_binding || 0.30;
-            bindingCharge = stapleRate * (billingSheets * (printOptions.copies || 1));
-            bindingWeight = 0.01 * (printOptions.bindingQuantity || 1);
-        }
+            let docPrintCharge = 0;
+            if (isDouble) {
+                if (effectivePages === 1) {
+                    // Single page double-sided: halve the charge
+                    docPrintCharge = doubleRate * 0.5;
+                } else if (effectivePages % 2 !== 0) {
+                    // Odd pages: paired pages at double rate + last page at single rate
+                    const pairedPages = effectivePages - 1;
+                    docPrintCharge = (pairedPages * doubleRate) + (1 * singleRate);
+                } else {
+                    docPrintCharge = effectivePages * doubleRate;
+                }
+            } else {
+                docPrintCharge = effectivePages * singleRate;
+            }
 
-        const totalSheets = billingSheets * (printOptions.copies || 1);
+            docPrintCharge *= (opts.copies || 1);
 
-        // Weight Calculation: paper only (1 kg per 200 sheets, rounded up)
+            const billingSheets = isDouble ? Math.ceil(effectivePages / 2) : effectivePages;
+            const docSheets = billingSheets * (opts.copies || 1);
+            totalSheets += docSheets;
+
+            let docBindCharge = 0;
+            if (opts.binding === 'Spiral') {
+                const spiralRate = isA3 ? 40 : (rules.additional.binding || 15);
+                docBindCharge = spiralRate * (opts.bindingQuantity || 1);
+            } else if (opts.binding === 'Chart') {
+                const chartRate = isA3 ? 20 : (rules.additional.chart_binding || 10);
+                docBindCharge = chartRate * (opts.bindingQuantity || 1);
+            } else if (opts.binding === 'Staple') {
+                const stapleRate = rules.additional?.staple_binding || 0.30;
+                docBindCharge = stapleRate * docSheets;
+            }
+
+            opts.price = docPrintCharge + docBindCharge;
+            totalPrintingCharge += docPrintCharge;
+            totalBindingCharge += docBindCharge;
+        });
+
+        // 5. Weight: 1 kg per 200 sheets, rounded up
         const calcWeight = Math.ceil(totalSheets / 200);
 
         let deliveryCharge = 0;
         if (fulfillment.method === 'delivery') {
             if (calcWeight <= 3) {
-                // Tier 1: <= 3kg -> ₹35 per kg, No Slip
                 deliveryCharge = 35 * calcWeight;
             } else if (calcWeight <= 10) {
-                // Tier 2: 4-10kg -> ₹29 per kg + ₹20 Slip
                 deliveryCharge = (29 * calcWeight) + 20;
             } else {
-                // Tier 3: > 10kg -> ₹26 per kg + ₹20 Slip
                 deliveryCharge = (26 * calcWeight) + 20;
             }
         }
 
-        // Final Total calculated server-side to prevent tampering
-        const subtotal = printingCharge + bindingCharge + deliveryCharge;
+        const subtotal = totalPrintingCharge + totalBindingCharge + deliveryCharge;
         let finalAmount = Math.max(0, subtotal - (couponDiscount || 0) - (walletUsed || 0));
 
-        // NaN Safeguards
-        if (isNaN(printingCharge)) throw new Error("Invalid printing charge calculation");
+        if (isNaN(totalPrintingCharge)) throw new Error("Invalid printing charge calculation");
         if (isNaN(deliveryCharge)) deliveryCharge = 0;
         if (isNaN(finalAmount)) finalAmount = 0;
 
-        // 4. Handle Wallet Deduction
+        // 5. Handle Wallet Deduction
         if (walletUsed > 0) {
             const wallet = await Wallet.findOne({ userId });
             if (!wallet || wallet.balance < walletUsed) {
@@ -176,19 +190,19 @@ export const placePrintOrder = async (req, res) => {
             await User.findByIdAndUpdate(userId, { walletBalance: wallet.balance });
         }
 
-        // 5. Handle Coupon Usage
+        // 6. Handle Coupon Usage
         if (couponCode) {
             await Coupon.findOneAndUpdate({ code: couponCode }, { $inc: { usedCount: 1 } });
         }
 
-        // 6. Create Order
+        // 7. Create Order — printOptions is an array
         const order = await Order.create({
             userId,
             files: uploadedFiles,
-            printOptions,
+            printOptions: optionsArray.map((opts, i) => ({ ...opts, fileIndex: i })),
             pricing: {
-                printingCharge,
-                bindingCharge,
+                printingCharge: totalPrintingCharge,
+                bindingCharge: totalBindingCharge,
                 deliveryCharge,
                 couponDiscount: couponDiscount || 0,
                 walletUsed: walletUsed || 0,
@@ -353,8 +367,11 @@ export const updateOrderAndRecalculate = async (req, res) => {
         // Fetch Pricing Rules
         const pricingData = await Pricing.findOne({ type: 'printing_rules' });
         const rules = pricingData ? pricingData.rules : {
-            printing: { bw: { single: 2, double: 3 }, color: { single: 10, double: 15 } },
-            additional: { binding: 50, hard_binding: 200, handling_fee: 10 },
+            printing: {
+                bw: { single: 0.75, double: 0.5, a3_single: 2, a3_double: 1.5 },
+                color: { single: 8, double: 8, a3_single: 20, a3_double: 20 }
+            },
+            additional: { binding: 15, chart_binding: 10, hard_binding: 200, handling_fee: 10 },
             delivery_tiers: {
                 tier_a: { maxWeight: 3, rate: 35, slip: 0 },
                 tier_b: { maxWeight: 10, rate: 29, slip: 20 },
@@ -362,75 +379,94 @@ export const updateOrderAndRecalculate = async (req, res) => {
             }
         };
 
-        // Recalculate
-        const docPages = order.files.reduce((acc, f) => acc + (f.pageCount || 0), 0);
-        const totalPages = printOptions.pageRangeType === 'Custom'
-            ? calculateCustomPageCount(printOptions.customPages)
-            : docPages;
+        // Ensure printOptions is an array (backward compat)
+        const optionsArray = Array.isArray(printOptions) ? printOptions : [printOptions];
 
-        const isColor = printOptions.mode === 'Color';
-        const isDouble = printOptions.side === 'Double';
+        // Recalculate per-document
+        let totalPrintingCharge = 0;
+        let totalBindingCharge = 0;
+        let totalSheets = 0;
 
-        const colorKey = isColor ? 'color' : 'bw';
-        const sideKey = isDouble ? 'double' : 'single';
-        const a3SideKey = isDouble ? 'a3_double' : 'a3_single';
+        optionsArray.forEach((opts, idx) => {
+            const file = order.files[idx] || order.files[0];
+            const docPages = file?.pageCount || 1;
+            const totalPages = opts.pageRangeType === 'Custom'
+                ? calculateCustomPageCount(opts.customPages)
+                : docPages;
 
-        let rate;
-        if (isA3) {
-            rate = rules.printing[colorKey][a3SideKey] || (rules.printing[colorKey][sideKey] * 2);
-        } else {
-            rate = rules.printing[colorKey][sideKey];
-        }
+            const isColor = opts.mode === 'Color';
+            const isDouble = opts.side === 'Double';
+            const isA3 = opts.paperSize === 'A3';
 
-        const printingCharge = totalPages * (rate || (isColor ? 10 : 2)) * (printOptions.copies || 1);
-        const billingSheets = isDouble ? Math.ceil(totalPages / 2) : totalPages;
+            const colorKey = isColor ? 'color' : 'bw';
+            const singleKey = isA3 ? 'a3_single' : 'single';
+            const doubleKey = isA3 ? 'a3_double' : 'double';
+            const singleRate = rules.printing[colorKey][singleKey] || (isColor ? 8 : 0.75);
+            const doubleRate = rules.printing[colorKey][doubleKey] || singleRate;
 
-        let bindingCharge = 0;
-        let bindingWeight = 0;
-        if (printOptions.binding === 'Spiral') {
-            const spiralRate = isA3 ? 40 : (rules.additional.binding || 15);
-            bindingCharge = spiralRate * (printOptions.bindingQuantity || 1);
-            bindingWeight = 0.1 * (printOptions.bindingQuantity || 1);
-        } else if (printOptions.binding === 'Chart') {
-            const chartRate = isA3 ? 20 : (rules.additional.chart_binding || 10);
-            bindingCharge = chartRate * (printOptions.bindingQuantity || 1);
-            bindingWeight = 0.05 * (printOptions.bindingQuantity || 1);
-        } else if (printOptions.binding === 'Staple') {
-            const stapleRate = rules.additional?.staple_binding || 0.30;
-            const bSheets = isDouble ? Math.ceil(totalPages / 2) : totalPages;
-            bindingCharge = stapleRate * (bSheets * (printOptions.copies || 1));
-            bindingWeight = 0.01 * (printOptions.bindingQuantity || 1);
-        }
+            const effectivePages = opts.pagesPerSheet === 2 ? Math.ceil(totalPages / 2) : totalPages;
 
+            let docPrintCharge = 0;
+            if (isDouble) {
+                if (effectivePages === 1) {
+                    docPrintCharge = doubleRate * 0.5;
+                } else if (effectivePages % 2 !== 0) {
+                    const pairedPages = effectivePages - 1;
+                    docPrintCharge = (pairedPages * doubleRate) + (1 * singleRate);
+                } else {
+                    docPrintCharge = effectivePages * doubleRate;
+                }
+            } else {
+                docPrintCharge = effectivePages * singleRate;
+            }
 
-        const totalSheets = billingSheets * (printOptions.copies || 1);
-        const calcWeight = (totalSheets * 5 / 1000);
+            docPrintCharge *= (opts.copies || 1);
+
+            const billingSheets = isDouble ? Math.ceil(effectivePages / 2) : effectivePages;
+            const docSheets = billingSheets * (opts.copies || 1);
+            totalSheets += docSheets;
+
+            let docBindCharge = 0;
+            if (opts.binding === 'Spiral') {
+                const spiralRate = isA3 ? 40 : (rules.additional.binding || 15);
+                docBindCharge = spiralRate * (opts.bindingQuantity || 1);
+            } else if (opts.binding === 'Chart') {
+                const chartRate = isA3 ? 20 : (rules.additional.chart_binding || 10);
+                docBindCharge = chartRate * (opts.bindingQuantity || 1);
+            } else if (opts.binding === 'Staple') {
+                const stapleRate = rules.additional?.staple_binding || 0.30;
+                docBindCharge = stapleRate * docSheets;
+            }
+
+            opts.price = docPrintCharge + docBindCharge;
+            totalPrintingCharge += docPrintCharge;
+            totalBindingCharge += docBindCharge;
+        });
+
+        const calcWeight = Math.ceil(totalSheets / 200);
 
         let deliveryCharge = 0;
         if (order.fulfillment.method === 'delivery') {
-            const tiers = rules.delivery_tiers;
-            let rule = tiers.tier_c;
-
-            if (calcWeight <= tiers.tier_a.maxWeight) {
-                rule = tiers.tier_a;
-            } else if (calcWeight <= tiers.tier_b.maxWeight) {
-                rule = tiers.tier_b;
+            if (calcWeight <= 3) {
+                deliveryCharge = 35 * calcWeight;
+            } else if (calcWeight <= 10) {
+                deliveryCharge = (29 * calcWeight) + 20;
+            } else {
+                deliveryCharge = (26 * calcWeight) + 20;
             }
-
-            deliveryCharge = (rule.rate * calcWeight) + rule.slip;
         }
 
-        const subtotal = printingCharge + bindingCharge + deliveryCharge;
+        const subtotal = totalPrintingCharge + totalBindingCharge + deliveryCharge;
         const finalAmount = Math.max(0, subtotal - (order.pricing.couponDiscount || 0) - (order.pricing.walletUsed || 0));
 
-        order.printOptions = { ...order.printOptions, ...printOptions };
+        order.printOptions = optionsArray.map((opts, i) => ({ ...opts, fileIndex: i }));
         order.pricing = {
             ...order.pricing,
-            printingCharge,
-            bindingCharge,
+            printingCharge: totalPrintingCharge,
+            bindingCharge: totalBindingCharge,
             totalAmount: finalAmount
         };
-        order.payment.isPaid = false; // Reset payment status on modification if amount changes
+        order.payment.isPaid = false;
 
         await order.save();
 
@@ -485,85 +521,100 @@ export const generateThermalBillPDF = async (req, res) => {
 
         // Shop and Customer Info
         doc.fillColor('#000').fontSize(10).font('Helvetica-Bold').text('SOLD BY:', 50, 130);
-        doc.font('Helvetica').text(shop.name, 50, 145);
-        doc.text(shop.address, 50, 160, { width: 200 });
-        doc.text(`Phone: ${shop.phone}`, 50, 190);
-        if (shop.gstNumber) doc.text(`GST: ${shop.gstNumber}`, 50, 205);
+        doc.font('Helvetica').fontSize(10);
+        doc.text(shop.name, 50, 145);
+        doc.text(shop.address, 50, doc.y, { width: 200 });
+        doc.text(`Phone: ${shop.phone}`, 50, doc.y);
+        if (shop.gstNumber) doc.text(`GST: ${shop.gstNumber}`, 50, doc.y);
 
         doc.font('Helvetica-Bold').text('BILL TO:', 350, 130);
-        doc.font('Helvetica').text(order.userId?.name || 'Walk-in Customer', 350, 145);
-        if (order.deliveryDetails?.address) {
-            doc.text(order.deliveryDetails.address, 350, 160, { width: 200 });
-            doc.text(`${order.deliveryDetails.dist}, ${order.deliveryDetails.state} - ${order.deliveryDetails.pincode}`, 350, 190);
-        }
-        doc.text(`Phone: ${order.deliveryDetails?.phone || 'N/A'}`, 350, 205);
+        doc.font('Helvetica').fontSize(10);
+        doc.text(order.userId?.name || 'Walk-in Customer', 350, 145);
 
-        doc.moveTo(50, 230).lineTo(550, 230).strokeColor('#eeeeee').stroke();
+        if (order.fulfillment?.method === 'pickup') {
+            doc.text('STORE PICKUP', 350, doc.y);
+            if (order.fulfillment.pickupLocation) {
+                doc.text(order.fulfillment.pickupLocation, 350, doc.y, { width: 200 });
+            }
+        } else if (order.deliveryDetails?.address) {
+            doc.text(order.deliveryDetails.address, 350, doc.y, { width: 200 });
+            const cityState = [order.deliveryDetails.dist, order.deliveryDetails.state].filter(Boolean).join(', ');
+            const pin = order.deliveryDetails.pincode ? ` - ${order.deliveryDetails.pincode}` : '';
+            if (cityState || pin) doc.text(`${cityState}${pin}`, 350, doc.y);
+        }
+        doc.text(`Phone: ${order.deliveryDetails?.phone || order.userId?.phone || 'N/A'}`, 350, doc.y);
+
+        doc.moveTo(50, 235).lineTo(550, 235).strokeColor('#000').lineWidth(0.5).stroke();
 
         // Table Header
         const tableTop = 250;
-        doc.font('Helvetica-Bold');
+        doc.font('Helvetica-Bold').fillColor('#444');
         doc.text('Description', 50, tableTop);
         doc.text('Pages', 250, tableTop, { width: 50, align: 'center' });
         doc.text('Copies', 300, tableTop, { width: 50, align: 'center' });
         doc.text('Category', 350, tableTop, { width: 100, align: 'center' });
         doc.text('Amount', 450, tableTop, { width: 100, align: 'right' });
 
-        doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).strokeColor('#eeeee').stroke();
+        doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).strokeColor('#eeeeee').stroke();
 
         // Table Rows
         let currentY = tableTop + 30;
-        doc.font('Helvetica');
+        doc.font('Helvetica').fillColor('#000');
 
-        order.files.forEach((file) => {
+        order.files.forEach((file, idx) => {
+            const opts = Array.isArray(order.printOptions) ? (order.printOptions[idx] || order.printOptions[0]) : order.printOptions;
             const fileName = file.originalName.length > 30 ? file.originalName.slice(0, 27) + '...' : file.originalName;
-            doc.text(fileName, 50, currentY);
-            doc.text(order.printOptions.pageRange || 'All', 250, currentY, { width: 50, align: 'center' });
-            doc.text(order.printOptions.copies.toString(), 300, currentY, { width: 50, align: 'center' });
-            doc.text(`${order.printOptions.mode} ${order.printOptions.side}`, 350, currentY, { width: 100, align: 'center' });
 
-            // Per file printing charge estimation
-            const fileCharge = (order.pricing.printingCharge / order.files.length).toFixed(2);
-            doc.text(`₹${fileCharge}`, 450, currentY, { width: 100, align: 'right' });
+            doc.text(fileName, 50, currentY, { width: 180 });
+            doc.text(opts?.pageRangeType || 'All', 250, currentY, { width: 50, align: 'center' });
+            doc.text((opts?.copies || 1).toString(), 300, currentY, { width: 50, align: 'center' });
+            doc.text(`${opts?.mode || 'B/W'} ${opts?.side || 'Single'}`, 350, currentY, { width: 100, align: 'center' });
+
+            const fileCharge = opts?.price || (order.pricing.printingCharge / order.files.length);
+            doc.text(`Rs. ${Number(fileCharge).toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
 
             currentY += 20;
         });
 
-        if (order.printOptions.binding !== 'Loose Papers') {
-            doc.text(`Binding: ${order.printOptions.binding}`, 50, currentY);
-            doc.text(`₹${order.pricing.bindingCharge.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
+        // Show binding if any document has non-Loose binding
+        const bindingOpts = Array.isArray(order.printOptions) ? order.printOptions : [order.printOptions];
+        const hasBinding = bindingOpts.some(o => o?.binding && o.binding !== 'Loose Papers');
+        if (hasBinding) {
+            const bindTypes = [...new Set(bindingOpts.filter(o => o?.binding && o.binding !== 'Loose Papers').map(o => o.binding))];
+            doc.text(`Binding: ${bindTypes.join(', ')}`, 50, currentY);
+            doc.text(`Rs. ${order.pricing.bindingCharge.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
             currentY += 20;
         }
 
-        doc.moveTo(50, currentY).lineTo(550, currentY).strokeColor('#eeeeee').stroke();
+        doc.moveTo(350, currentY).lineTo(550, currentY).strokeColor('#eeeeee').stroke();
 
         // Summary
         currentY += 15;
         const summaryX = 350;
 
         doc.text('Subtotal:', summaryX, currentY);
-        doc.text(`₹${(order.pricing.printingCharge + order.pricing.bindingCharge).toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
+        doc.text(`Rs. ${(order.pricing.printingCharge + order.pricing.bindingCharge).toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
 
         currentY += 20;
         doc.text('Delivery Charge:', summaryX, currentY);
-        doc.text(`₹${order.pricing.deliveryCharge.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
+        doc.text(`Rs. ${order.pricing.deliveryCharge.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
 
         if (order.pricing.couponDiscount > 0) {
             currentY += 20;
             doc.fillColor('#ea580c').text('Coupon Discount:', summaryX, currentY);
-            doc.text(`-₹${order.pricing.couponDiscount.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' }).fillColor('#000');
+            doc.text(`-Rs. ${order.pricing.couponDiscount.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' }).fillColor('#000');
         }
 
         if (order.pricing.walletUsed > 0) {
             currentY += 20;
             doc.fillColor('#2563eb').text('Wallet Used:', summaryX, currentY);
-            doc.text(`-₹${order.pricing.walletUsed.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' }).fillColor('#000');
+            doc.text(`-Rs. ${order.pricing.walletUsed.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' }).fillColor('#000');
         }
 
         currentY += 30;
         doc.font('Helvetica-Bold').fontSize(14);
         doc.text('TOTAL AMOUNT:', summaryX, currentY);
-        doc.text(`₹${order.pricing.totalAmount.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
+        doc.text(`Rs. ${order.pricing.totalAmount.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
 
         // Footer
         const footerY = 750;

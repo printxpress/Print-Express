@@ -13,7 +13,8 @@ const PrintPage = () => {
     const navigate = useNavigate();
     const [files, setFiles] = useState([]);
     const [fileMetadata, setFileMetadata] = useState([]);
-    const [options, setOptions] = useState({
+
+    const getDefaultOptions = () => ({
         mode: 'B/W',
         side: 'Double',
         paperSize: 'A4',
@@ -22,28 +23,43 @@ const PrintPage = () => {
         orientation: 'Portrait',
         layout: 'Full',
         bindingQuantity: 1,
-        pageRangeType: 'All', // 'All' or 'Custom'
-        customPages: '', // e.g., '1-5, 10, 12-15'
+        pageRangeType: 'All',
+        customPages: '',
         notes: '',
-        pagesPerSheet: 1 // 1 or 2
+        pagesPerSheet: 1
     });
+
+    const [documentsOptions, setDocumentsOptions] = useState([]);
+    const [activeDocTab, setActiveDocTab] = useState(0);
+    const [documentPrices, setDocumentPrices] = useState([]);
+
+    // Convenience: current active document's options
+    const options = documentsOptions[activeDocTab] || getDefaultOptions();
+    const setOptions = (newOpts) => {
+        setDocumentsOptions(prev => {
+            const updated = [...prev];
+            updated[activeDocTab] = typeof newOpts === 'function' ? newOpts(updated[activeDocTab]) : newOpts;
+            return updated;
+        });
+    };
     const [step, setStep] = useState(1);
 
-    // Smart Binding Sync
+    // Smart Binding Sync — for active document
     useEffect(() => {
         if (options.binding !== 'Loose Papers') {
-            // Sync binding quantity with copies
-            setOptions(prev => ({ ...prev, bindingQuantity: options.copies }));
+            setOptions(prev => ({ ...prev, bindingQuantity: prev?.copies || 1 }));
         }
-    }, [options.copies, options.binding]);
+    }, [options.copies, options.binding, activeDocTab]);
 
-    // Auto-reset Staple if sheets exceed 50
+    // Auto-reset Staple if sheets exceed 50 — for active document
     useEffect(() => {
-        const docPgs = fileMetadata.reduce((sum, meta) => sum + (meta.pageCount || 0), 0);
+        const meta = fileMetadata[activeDocTab];
+        if (!meta || !options) return;
+        const docPgs = meta.pageCount || 0;
         const totPgs = options.pageRangeType === 'All' ? docPgs : calculateCustomPageCount(options.customPages);
         const effPgs = options.pagesPerSheet === 2 ? Math.ceil(totPgs / 2) : totPgs;
         const bSheets = options.side === 'Double' ? Math.ceil(effPgs / 2) : effPgs;
-        const totalSheets = bSheets * options.copies;
+        const totalSheets = bSheets * (options.copies || 1);
         if (options.binding === 'Staple' && totalSheets > 50) {
             setOptions(prev => ({ ...prev, binding: 'Loose Papers' }));
             toast('📌 Staple binding is only available for ≤50 sheets. Switched to Loose Papers.', {
@@ -51,7 +67,15 @@ const PrintPage = () => {
                 style: { borderRadius: '10px', background: '#333', color: '#fff' }
             });
         }
-    }, [fileMetadata, options.copies, options.side, options.pagesPerSheet, options.pageRangeType, options.customPages, options.binding]);
+    }, [fileMetadata, activeDocTab, options.copies, options.side, options.pagesPerSheet, options.pageRangeType, options.customPages, options.binding]);
+
+    // Apply same options as first document to all others
+    const applySameAsFirst = () => {
+        if (documentsOptions.length <= 1) return;
+        const first = { ...documentsOptions[0] };
+        setDocumentsOptions(prev => prev.map(() => ({ ...first })));
+        toast.success('✅ Applied first document\'s settings to all documents');
+    };
 
     const [stepLoading, setStepLoading] = useState(false);
     const [delivery, setDelivery] = useState({
@@ -163,94 +187,94 @@ const PrintPage = () => {
     };
 
     useEffect(() => {
-        const docPages = fileMetadata.reduce((sum, meta) => sum + (meta.pageCount || 0), 0);
-        const totalPages = options.pageRangeType === 'All' ? docPages : calculateCustomPageCount(options.customPages);
-
-        // Effective pages considering 'Times per sheet' (1 or 2)
-        const effectivePages = options.pagesPerSheet === 2 ? Math.ceil(totalPages / 2) : totalPages;
-
-        const isColor = options.mode === 'Color';
-        const isDouble = options.side === 'Double';
-        const isA3 = options.paperSize === 'A3';
-
-        // Primary Rate Logic based on Printing Rules
-        const colorKey = isColor ? 'color' : 'bw';
-        const sideKey = isDouble ? 'double' : 'single';
-        const a3SideKey = isDouble ? 'a3_double' : 'a3_single';
-
-        let rate;
-        if (isA3) {
-            rate = rules.printing[colorKey][a3SideKey] || (rules.printing[colorKey][sideKey] * 2);
-        } else {
-            rate = rules.printing[colorKey][sideKey];
+        if (documentsOptions.length === 0 || fileMetadata.length === 0) {
+            setPricing({ basePrint: 0, sideDiscount: 0, print: 0, binding: 0, delivery: 0, couponDiscount: 0, walletUsed: 0, total: 0, weight: 0 });
+            setDocumentPrices([]);
+            return;
         }
 
-        const printingCharge = effectivePages * rate * options.copies;
-        const billingSheets = isDouble ? Math.ceil(effectivePages / 2) : effectivePages;
-        const printCharge = printingCharge;
+        let totalPrintCharge = 0;
+        let totalBindCharge = 0;
+        let totalSheets = 0;
+        const prices = [];
 
-        let bindBase = 0;
-        const totalSheets = billingSheets * (options.copies || 1);
+        documentsOptions.forEach((opts, idx) => {
+            const meta = fileMetadata[idx];
+            if (!meta || !opts) { prices.push(0); return; }
 
-        if (options.binding === 'Spiral') {
-            bindBase = options.paperSize === 'A3' ? 40 : 15;
-            if (totalSheets > 300) {
-                // We'll handle the warning display outside this useEffect or by a state
-            }
-        } else if (options.binding === 'Chart') {
-            bindBase = options.paperSize === 'A3' ? 20 : 10;
-        } else if (options.binding === 'Staple') {
-            bindBase = rules.additional?.staple_binding || 0.30;
-            // Staple is per-sheet, not per-copy
-        }
+            const docPgs = meta.pageCount || 0;
+            const totalPages = opts.pageRangeType === 'All' ? docPgs : calculateCustomPageCount(opts.customPages);
+            const effectivePages = opts.pagesPerSheet === 2 ? Math.ceil(totalPages / 2) : totalPages;
 
-        const bindCharge = bindBase * (options.bindingQuantity || 1);
+            const isColor = opts.mode === 'Color';
+            const isDouble = opts.side === 'Double';
+            const isA3 = opts.paperSize === 'A3';
+            const colorKey = isColor ? 'color' : 'bw';
+            const singleKey = isA3 ? 'a3_single' : 'single';
+            const doubleKey = isA3 ? 'a3_double' : 'double';
+            const singleRate = rules.printing[colorKey][singleKey] || (isColor ? 8 : 0.75);
+            const doubleRate = rules.printing[colorKey][doubleKey] || singleRate;
 
-        // Tiered Delivery Logic (Deferred until Step 4 and Pincode provided)
-        let deliveryCharge = 0;
-        const isLastStage = step === 4;
-        const hasValidPincode = delivery.pincode && delivery.pincode.length === 6;
-
-        let bindWeight = 0;
-        if (options.binding === 'Spiral') bindWeight = 0.1 * (options.bindingQuantity || 1);
-        else if (options.binding === 'Chart') bindWeight = 0.05 * (options.bindingQuantity || 1);
-        else if (options.binding === 'Staple') bindWeight = 0.01 * (options.bindingQuantity || 1);
-
-        // Weight Calculation: paper only (1 kg per 200 sheets, rounded up)
-        const calcWeight = Math.ceil(totalSheets / 200);
-
-        // New Delivery Charge Logic (Tamil Nadu / General)
-        if (fulfillment === 'delivery' && hasValidPincode) {
-            if (calcWeight <= 3) {
-                // Tier 1: <= 3kg -> ₹35 per kg, No Slip
-                deliveryCharge = 35 * calcWeight;
-            } else if (calcWeight <= 10) {
-                // Tier 2: 4-10kg -> ₹29 per kg + ₹20 Slip
-                deliveryCharge = (29 * calcWeight) + 20;
+            let docPrintCharge = 0;
+            if (isDouble) {
+                if (effectivePages === 1) {
+                    docPrintCharge = doubleRate * 0.5;
+                } else if (effectivePages % 2 !== 0) {
+                    docPrintCharge = ((effectivePages - 1) * doubleRate) + (1 * singleRate);
+                } else {
+                    docPrintCharge = effectivePages * doubleRate;
+                }
             } else {
-                // Tier 3: > 10kg -> ₹26 per kg + ₹20 Slip
-                deliveryCharge = (26 * calcWeight) + 20;
+                docPrintCharge = effectivePages * singleRate;
             }
+            docPrintCharge *= (opts.copies || 1);
+
+            const billingSheets = isDouble ? Math.ceil(effectivePages / 2) : effectivePages;
+            const docSheets = billingSheets * (opts.copies || 1);
+
+            let docBindCharge = 0;
+            if (opts.binding === 'Spiral') {
+                docBindCharge = (isA3 ? 40 : 15) * (opts.bindingQuantity || 1);
+            } else if (opts.binding === 'Chart') {
+                docBindCharge = (isA3 ? 20 : 10) * (opts.bindingQuantity || 1);
+            } else if (opts.binding === 'Staple') {
+                docBindCharge = (rules.additional?.staple_binding || 0.30) * docSheets;
+            }
+
+            totalPrintCharge += docPrintCharge;
+            totalBindCharge += docBindCharge;
+            totalSheets += docSheets;
+            prices.push(docPrintCharge + docBindCharge);
+        });
+
+        const calcWeight = Math.ceil(totalSheets / 200) || 0;
+        const hasValidPincode = delivery.pincode && delivery.pincode.length === 6;
+        let deliveryCharge = 0;
+        if (fulfillment === 'delivery' && hasValidPincode) {
+            if (calcWeight <= 3) deliveryCharge = 35 * calcWeight;
+            else if (calcWeight <= 10) deliveryCharge = (29 * calcWeight) + 20;
+            else deliveryCharge = (26 * calcWeight) + 20;
         }
 
-        const subtotal = printCharge + bindCharge + deliveryCharge;
+        const subtotal = totalPrintCharge + totalBindCharge + deliveryCharge;
         const couponDiscount = couponApplied?.discount || 0;
         const afterCoupon = Math.max(0, subtotal - couponDiscount);
         const walletUsed = useWallet ? Math.min(walletBalance, afterCoupon) : 0;
         const total = afterCoupon - walletUsed;
 
+        setDocumentPrices(prices);
         setPricing({
-            basePrint: printingCharge,
+            basePrint: totalPrintCharge,
             sideDiscount: 0,
-            print: printingCharge,
-            binding: bindCharge,
+            print: totalPrintCharge,
+            binding: totalBindCharge,
             delivery: deliveryCharge,
             couponDiscount,
             walletUsed,
             total,
             weight: calcWeight
         });
-    }, [fileMetadata, options, fulfillment, couponApplied, useWallet, walletBalance, rules, services, step, delivery.pincode]);
+    }, [fileMetadata, documentsOptions, fulfillment, couponApplied, useWallet, walletBalance, rules, step, delivery.pincode]);
 
     const handlePincodeChange = async (pincode) => {
         setDelivery(prev => ({ ...prev, pincode }));
@@ -292,11 +316,13 @@ const PrintPage = () => {
         setProcessingFiles(true);
         const validFiles = [];
         const metadata = [];
+        const newOptions = [];
         for (const file of uploaded) {
             const meta = await detectDocument(file);
             if (meta.isValid) {
                 validFiles.push(file);
                 metadata.push(meta);
+                newOptions.push(getDefaultOptions());
                 toast.success(`✅ ${meta.name}: ${meta.type} (${meta.pageCount} page${meta.pageCount > 1 ? 's' : ''})`);
             } else {
                 toast.error(`❌ ${file.name}: ${meta.error}`);
@@ -304,12 +330,17 @@ const PrintPage = () => {
         }
         setFiles(prev => [...prev, ...validFiles]);
         setFileMetadata(prev => [...prev, ...metadata]);
+        setDocumentsOptions(prev => [...prev, ...newOptions]);
         setProcessingFiles(false);
     };
 
     const removeFile = (index) => {
         setFiles(files.filter((_, idx) => idx !== index));
         setFileMetadata(fileMetadata.filter((_, idx) => idx !== index));
+        setDocumentsOptions(prev => prev.filter((_, idx) => idx !== index));
+        if (activeDocTab >= files.length - 1 && activeDocTab > 0) {
+            setActiveDocTab(activeDocTab - 1);
+        }
     };
 
     const handleApplyCoupon = async () => {
@@ -349,14 +380,14 @@ const PrintPage = () => {
             files.forEach(file => formData.append('files', file));
             formData.append('data', JSON.stringify({
                 userId: user._id || user.id,
-                printOptions: options,
+                printOptions: documentsOptions,
                 fulfillment: {
                     method: fulfillment,
                     pickupLocation: fulfillment === 'pickup' ? 'Print Express Store, Coimbatore' : undefined
                 },
                 deliveryDetails: fulfillment === 'delivery' ? delivery : undefined,
                 paymentMethod: paymentMethod === 'UPI' ? 'RAZORPAY' : paymentMethod,
-                isPaid: false, // Set to false initially, will be verified via Razorpay
+                isPaid: false,
                 couponCode: couponApplied?.code || '',
                 couponDiscount: pricing.couponDiscount,
                 walletUsed: pricing.walletUsed,
@@ -398,6 +429,7 @@ const PrintPage = () => {
                                         toast.success("Payment successful! Order placed. 🎉");
                                         setFiles([]);
                                         setFileMetadata([]);
+                                        setDocumentsOptions([]);
                                         setCouponApplied(null);
                                         setCouponCode('');
                                         setUseWallet(false);
@@ -435,6 +467,7 @@ const PrintPage = () => {
                     toast.success("Order Placed Successfully! 🎉");
                     setFiles([]);
                     setFileMetadata([]);
+                    setDocumentsOptions([]);
                     setCouponApplied(null);
                     setCouponCode('');
                     setUseWallet(false);
@@ -474,12 +507,27 @@ const PrintPage = () => {
         return <PrintingAnimation message={stepLoading ? "Moving to next step..." : "Processing your order..."} />;
     }
 
-    const docPages = fileMetadata.reduce((sum, meta) => sum + (meta.pageCount || 0), 0);
+    const activeDocMeta = fileMetadata[activeDocTab];
+    const docPages = activeDocMeta ? activeDocMeta.pageCount || 0 : fileMetadata.reduce((sum, meta) => sum + (meta.pageCount || 0), 0);
     const totalPages = options.pageRangeType === 'All' ? docPages : calculateCustomPageCount(options.customPages);
     const effectivePages = options.pagesPerSheet === 2 ? Math.ceil(totalPages / 2) : totalPages;
     const billingSheets = options.side === 'Double' ? Math.ceil(effectivePages / 2) : effectivePages;
-    const totalBillingSheets = billingSheets * options.copies;
+    const totalBillingSheets = billingSheets * (options.copies || 1);
     const canStaple = totalBillingSheets <= 50;
+
+    const allDocTotalpgs = fileMetadata.reduce((sum, meta, i) => {
+        const opts = documentsOptions[i] || getDefaultOptions();
+        const tPgs = opts.pageRangeType === 'All' ? (meta.pageCount || 0) : calculateCustomPageCount(opts.customPages);
+        return sum + (tPgs * (opts.copies || 1));
+    }, 0);
+
+    const allDocTotalSheets = fileMetadata.reduce((sum, meta, i) => {
+        const opts = documentsOptions[i] || getDefaultOptions();
+        const tPgs = opts.pageRangeType === 'All' ? (meta.pageCount || 0) : calculateCustomPageCount(opts.customPages);
+        const ePgs = opts.pagesPerSheet === 2 ? Math.ceil(tPgs / 2) : tPgs;
+        const bSheets = opts.side === 'Double' ? Math.ceil(ePgs / 2) : ePgs;
+        return sum + (bSheets * (opts.copies || 1));
+    }, 0);
 
     return (
         <div className="py-12 max-w-6xl mx-auto space-y-12">
@@ -523,33 +571,39 @@ const PrintPage = () => {
                                 <span className="font-bold text-blue-800">{files.length} files</span>
                             </div>
                             <div className="flex justify-between items-center pb-2 border-b border-blue-100/50">
-                                <span className="text-text-muted">Total Pages ({options.side} Sided)</span>
-                                <span className="font-bold text-blue-800">{totalPages * options.copies} pg</span>
+                                <span className="text-text-muted">Total Pages </span>
+                                <span className="font-bold text-blue-800">{allDocTotalpgs} pg</span>
                             </div>
                             <div className="flex justify-between items-center pb-2 border-b border-blue-100/50">
                                 <span className="text-text-muted">Billable Sheets</span>
                                 <div className="text-right">
-                                    <span className="font-bold text-blue-800">{billingSheets * options.copies} sheets</span>
-                                    {options.pagesPerSheet === 2 && (
-                                        <p className="text-[10px] text-green-600 font-bold">50% Money Saver Applied</p>
-                                    )}
+                                    <span className="font-bold text-blue-800">{allDocTotalSheets} sheets</span>
                                 </div>
                             </div>
 
 
-                            {/* Detailed Summary only in Step 4 */}
+                            {/* Detailed Breakdown in Step 4 */}
                             {step === 4 && (
-                                <div className="space-y-2 py-2 bg-blue-50/50 rounded-lg p-3 border border-blue-100">
-                                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Specifications</p>
-                                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                                        <div><span className="text-text-muted">Mode:</span> <span className="font-bold">{options.mode}</span></div>
-                                        <div><span className="text-text-muted">Size:</span> <span className="font-bold">{options.paperSize}</span></div>
-                                        <div><span className="text-text-muted">Side:</span> <span className="font-bold">{options.side}</span></div>
-                                        <div><span className="text-text-muted">Orient:</span> <span className="font-bold">{options.orientation}</span></div>
-                                        <div><span className="text-text-muted">Layout:</span> <span className="font-bold">{options.layout}</span></div>
-                                        <div><span className="text-text-muted">Bind:</span> <span className="font-bold">{options.binding} x{options.bindingQuantity}</span></div>
-                                        <div><span className="text-text-muted">Copies:</span> <span className="font-bold">{options.copies}</span></div>
-                                    </div>
+                                <div className="space-y-3 py-2">
+                                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Document Breakdown</p>
+                                    {fileMetadata.map((meta, i) => {
+                                        const opts = documentsOptions[i] || getDefaultOptions();
+                                        return (
+                                            <div key={i} className="bg-white rounded-lg p-3 border border-blue-100 space-y-2 shadow-sm">
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <span className="text-[11px] font-bold truncate flex-1">{meta.name}</span>
+                                                    <span className="text-[11px] font-bold text-blue-700 whitespace-nowrap">₹{(documentPrices[i] || 0).toFixed(2)}</span>
+                                                </div>
+                                                <div className="grid grid-cols-1 gap-1 text-[10px] text-text-muted">
+                                                    <div>{opts.mode} • {opts.side} Sided • {opts.paperSize}</div>
+                                                    <div>{opts.pageRangeType === 'All' ? meta.pageCount : calculateCustomPageCount(opts.customPages)} pgs x {opts.copies} copies</div>
+                                                    {opts.binding !== 'Loose Papers' && (
+                                                        <div className="text-blue-600 font-medium">Binding: {opts.binding} (x{opts.bindingQuantity})</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
 
@@ -713,6 +767,42 @@ const PrintPage = () => {
                                 <span className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-full flex items-center justify-center text-sm">2</span>
                                 Print Options
                             </h3>
+
+                            {/* Documents Tabs */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm font-bold text-gray-700">Select Document to Configure:</p>
+                                    {fileMetadata.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={applySameAsFirst}
+                                            className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors"
+                                        >
+                                            📋 Same as First Print
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex flex-wrap gap-2 pb-2 overflow-x-auto no-scrollbar">
+                                    {fileMetadata.map((meta, i) => (
+                                        <button
+                                            key={i}
+                                            type="button"
+                                            onClick={() => setActiveDocTab(i)}
+                                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all whitespace-nowrap ${activeDocTab === i
+                                                ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100 scale-105 font-bold'
+                                                : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-slate-50'
+                                                }`}
+                                        >
+                                            <span className="text-lg">{getDocumentIcon(meta.type, meta.subType)}</span>
+                                            <div className="flex flex-col items-start leading-tight">
+                                                <span className="text-xs font-bold">{meta.name.length > 20 ? meta.name.slice(0, 17) + '...' : meta.name}</span>
+                                                <span className={`${activeDocTab === i ? 'text-blue-100' : 'text-slate-400'} text-[9px]`}>{meta.pageCount} pages</span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-sm font-semibold text-text-muted">Printing Mode</label>

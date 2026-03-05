@@ -145,7 +145,11 @@ const Dashboard = () => {
                                         <div>
                                             <p className="text-sm font-bold font-outfit">#{order._id?.slice(-8).toUpperCase()}</p>
                                             <p className="text-xs text-text-muted">
-                                                {order.printOptions?.mode} · {order.files?.length || 0} file(s) · {order.printOptions?.copies || 1} copies
+                                                {Array.isArray(order.printOptions) ? (
+                                                    `${order.files?.length || 0} files · ${order.printOptions[0]?.mode} ${order.printOptions.length > 1 ? '...' : ''}`
+                                                ) : (
+                                                    `${order.printOptions?.mode} · ${order.files?.length || 0} file(s)`
+                                                )}
                                             </p>
                                         </div>
                                     </div>
@@ -272,7 +276,7 @@ const Dashboard = () => {
                     Purge Old Files ({" > "} 7 Days)
                 </button>
             </div>
-        </div>
+        </div >
     );
 };
 

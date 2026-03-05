@@ -123,23 +123,46 @@ const MyOrders = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-4">
-                                    <p className="text-xs text-text-muted font-bold uppercase tracking-wider">PRINT DETAILS</p>
-                                    <div className="space-y-2">
-                                        <p className="flex justify-between text-sm"><span>Mode</span> <span className="font-bold">{order.printOptions.mode}</span></p>
-                                        <p className="flex justify-between text-sm"><span>Sides</span> <span className="font-bold">{order.printOptions.side}</span></p>
-                                        <p className="flex justify-between text-sm"><span>Binding</span> <span className="font-bold">{order.printOptions.binding}</span></p>
-                                        <p className="flex justify-between text-sm"><span>Copies</span> <span className="font-bold">{order.printOptions.copies}</span></p>
+                                    <p className="text-xs text-text-muted font-bold uppercase tracking-wider">PRINT SPECIFICATIONS</p>
+                                    <div className="space-y-3">
+                                        {Array.isArray(order.printOptions) ? order.printOptions.map((opt, optIdx) => (
+                                            <div key={optIdx} className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
+                                                <div className="flex justify-between items-baseline">
+                                                    <p className="text-[11px] font-bold text-slate-800 truncate flex-1 pr-2" title={order.files[optIdx]?.originalName}>
+                                                        {order.files[optIdx]?.originalName || `Document ${optIdx + 1}`}
+                                                    </p>
+                                                    {opt.price > 0 && (
+                                                        <span className="text-[10px] font-black text-green-600">₹{opt.price.toFixed(2)}</span>
+                                                    )}
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-y-1 text-[10px] text-text-muted">
+                                                    <div className="flex justify-between pr-2 border-r border-slate-200"><span>Mode:</span> <span className="font-bold text-slate-700">{opt.mode}</span></div>
+                                                    <div className="flex justify-between pl-2"><span>Sides:</span> <span className="font-bold text-slate-700">{opt.side}</span></div>
+                                                    <div className="flex justify-between pr-2 border-r border-slate-200"><span>Size:</span> <span className="font-bold text-slate-700">{opt.paperSize || 'A4'}</span></div>
+                                                    <div className="flex justify-between pl-2"><span>Copies:</span> <span className="font-bold text-slate-700">{opt.copies}</span></div>
+                                                    {opt.binding !== 'Loose Papers' && (
+                                                        <div className="col-span-2 pt-1 mt-1 border-t border-slate-100 text-blue-600 font-bold uppercase tracking-tighter">
+                                                            Binding: {opt.binding} (x{opt.bindingQuantity || 1})
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <p className="text-sm italic text-red-500">Settings Unavailable</p>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="space-y-4">
                                     <p className="text-xs text-text-muted font-bold uppercase tracking-wider">UPLOADED FILES</p>
-                                    <div className="space-y-2 max-h-32 overflow-y-auto pr-2 no-scrollbar">
+                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2 no-scrollbar">
                                         {order.files.map((file, fIdx) => (
-                                            <div key={fIdx} className="flex items-center gap-3 p-2 bg-bg rounded-lg border border-border/50">
+                                            <div key={fIdx} className="flex items-center gap-3 p-2 bg-bg rounded-lg border border-border/50 shadow-sm">
                                                 <span className="text-lg">📄</span>
                                                 <span className="text-xs truncate font-medium flex-1">{file.originalName}</span>
                                                 {file.url ? (
-                                                    <a href={file.url} target="_blank" rel="noreferrer" className="text-primary hover:underline text-[10px] font-bold">VIEW</a>
+                                                    <div className="flex gap-2">
+                                                        <a href={file.url} target="_blank" rel="noreferrer" className="bg-blue-600 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-blue-700 transition-colors">VIEW</a>
+                                                    </div>
                                                 ) : (
                                                     <span className="text-text-muted text-[10px] font-bold">POS</span>
                                                 )}
@@ -190,7 +213,7 @@ const MyOrders = () => {
                     ))
                 )}
             </div>
-        </div>
+        </div >
     )
 }
 
