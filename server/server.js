@@ -74,7 +74,8 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 // Middleware configuration
-app.use(express.json({ limit: '10kb' })); // Limit body payload to prevent DoS
+app.use(express.json({ limit: '10mb' })); // Increased limit to handle multi-document metadata
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 
 // 3. Data Sanitization against NoSQL Query Injection
