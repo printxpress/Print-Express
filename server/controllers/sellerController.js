@@ -153,3 +153,19 @@ export const getSellerAnalytics = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 }
+
+// Get Referrals Analytics : /api/seller/referrals
+export const getReferrals = async (req, res) => {
+    try {
+        const users = await User.find({
+            $or: [
+                { referralBalance: { $gt: 0 } },
+                { referredBy: { $exists: true } }
+            ]
+        }).populate('referredBy', 'name phone email').select('name phone email referralBalance referralCode referredBy');
+
+        return res.json({ success: true, users });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+}

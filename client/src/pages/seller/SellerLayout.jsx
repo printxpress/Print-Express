@@ -22,6 +22,7 @@ const SellerLayout = () => {
         { name: "Zones", path: "/seller/delivery", icon: "🚚", roles: ['admin', 'billing_manager'] },
         { name: "Banners", path: "/seller/banners", icon: "🖼️", roles: ['admin'] },
         { name: "Settings", path: "/seller/settings", icon: "⚙️", roles: ['admin', 'billing_manager'] },
+        { name: "Referrals", path: "/seller/referrals", icon: "🤝", roles: ['admin', 'billing_manager'] },
         { name: "Follow-ups", path: "/seller/followups", icon: "📢", roles: ['admin', 'billing_manager'] },
     ];
 

@@ -84,24 +84,27 @@ export const verifyOtp = async (req, res) => {
             const wallet = await Wallet.create({ userId: user._id, balance: 0, transactions: [] });
 
             if (referredBy) {
-                // Credit referee (new user) ₹50
-                wallet.balance += 50;
-                wallet.transactions.push({
-                    type: 'credit',
-                    amount: 50,
-                    description: 'Referral signup bonus',
-                    addedBy: 'referral'
-                });
-                await wallet.save();
-
-                // Update user walletBalance field
-                user.walletBalance = wallet.balance;
+                // Credit referee (new user) ₹50 to referralBalance
+                user.referralBalance = 50;
                 await user.save();
 
-                // Credit referrer ₹100
+                // Store in wallet transactions for history
+                const wallet = await Wallet.findOne({ userId: user._id });
+                if (wallet) {
+                    wallet.transactions.push({
+                        type: 'credit',
+                        amount: 50,
+                        description: 'Referral signup bonus',
+                        addedBy: 'referral'
+                    });
+                    await wallet.save();
+                }
+
+                // Credit referrer ₹100 to referralBalance
+                await User.findByIdAndUpdate(referredBy, { $inc: { referralBalance: 100 } });
+
                 const referrerWallet = await Wallet.findOne({ userId: referredBy });
                 if (referrerWallet) {
-                    referrerWallet.balance += 100;
                     referrerWallet.transactions.push({
                         type: 'credit',
                         amount: 100,
@@ -109,12 +112,7 @@ export const verifyOtp = async (req, res) => {
                         addedBy: 'referral'
                     });
                     await referrerWallet.save();
-
-                    // Update referrer user model walletBalance
-                    await User.findByIdAndUpdate(referredBy, { $inc: { walletBalance: 100 } });
                 }
-            } else {
-                await wallet.save();
             }
         }
 
@@ -224,6 +222,37 @@ export const getAllUsers = async (req, res) => {
         return res.json({ success: true, users: usersWithStats });
     } catch (error) {
         console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+}
+
+// Admin Update Customer : /api/user/update-customer
+export const updateCustomer = async (req, res) => {
+    try {
+        const { userId, name, email, phone, city, referralBalance } = req.body;
+        const updatedUser = await User.findByIdAndUpdate(userId, {
+            name, email, phone, city, referralBalance
+        }, { new: true });
+
+        if (!updatedUser) return res.json({ success: false, message: 'Customer not found' });
+        res.json({ success: true, message: 'Customer updated successfully', user: updatedUser });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+}
+
+// Admin Delete Customer : /api/user/delete-customer
+export const deleteCustomer = async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const user = await User.findByIdAndDelete(userId);
+        if (!user) return res.json({ success: false, message: 'Customer not found' });
+
+        // Also delete associated wallet
+        await Wallet.findOneAndDelete({ userId });
+
+        res.json({ success: true, message: 'Customer and wallet deleted successfully' });
+    } catch (error) {
         res.json({ success: false, message: error.message });
     }
 }

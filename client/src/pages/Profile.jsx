@@ -142,11 +142,43 @@ const Profile = () => {
     };
 
     const handleRecharge = async () => {
+        if (!rechargeAmount || rechargeAmount <= 0) return toast.error("Please enter a valid amount");
         setLoading(true);
         try {
             const { data } = await axios.post('/api/wallet/recharge', { amount: rechargeAmount });
             if (data.success) {
-                window.location.href = data.sessionUrl;
+                const rzpOptions = {
+                    key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+                    amount: data.razorpayOrder.amount,
+                    currency: data.razorpayOrder.currency,
+                    name: "Print Express Wallet",
+                    description: "Add credits to your wallet",
+                    order_id: data.razorpayOrder.id,
+                    handler: async (response) => {
+                        try {
+                            const { data: verifyData } = await axios.post('/api/wallet/verify', {
+                                ...response,
+                                amount: rechargeAmount
+                            });
+                            if (verifyData.success) {
+                                toast.success("Wallet recharged! 🚀");
+                                setUser(prev => ({ ...prev, walletBalance: verifyData.balance }));
+                            } else {
+                                toast.error(verifyData.message);
+                            }
+                        } catch (err) {
+                            toast.error("Verification failed");
+                        }
+                    },
+                    prefill: {
+                        name: user.name,
+                        email: user.email,
+                        contact: user.phone
+                    },
+                    theme: { color: "#2563eb" }
+                };
+                const rzp = new window.Razorpay(rzpOptions);
+                rzp.open();
             } else {
                 toast.error(data.message);
             }

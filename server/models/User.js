@@ -16,6 +16,7 @@ const userSchema = new mongoose.Schema({
         country: { type: String, default: 'India' }
     },
     walletBalance: { type: Number, default: 0, min: 0 },
+    referralBalance: { type: Number, default: 0, min: 0 },
     cart: { type: Object, default: {} },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
     referralCode: { type: String, unique: true, sparse: true },

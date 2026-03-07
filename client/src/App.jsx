@@ -36,6 +36,7 @@ import ManageBanners from './pages/seller/ManageBanners';
 import ReferAndEarn from './pages/ReferAndEarn';
 import Vouchers from './pages/Vouchers';
 import OrderSuccess from './pages/OrderSuccess';
+import ReferralManagement from './pages/seller/ReferralManagement';
 
 const App = () => {
 
@@ -79,6 +80,7 @@ const App = () => {
             <Route path='analytics' element={<Analytics />} />
             <Route path='wallet' element={<AdminWallet />} />
             <Route path='coupons' element={<AdminCoupons />} />
+            <Route path='referrals' element={<ReferralManagement />} />
             <Route path='followups' element={<FollowUps />} />
             <Route path='banners' element={<ManageBanners />} />
           </Route>

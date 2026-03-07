@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import toast from 'react-hot-toast';
 
 const Customers = () => {
     const { axios } = useAppContext();
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Modal State
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingCustomer, setEditingCustomer] = useState(null);
 
     const fetchCustomers = async () => {
         try {
@@ -24,6 +29,40 @@ const Customers = () => {
     useEffect(() => {
         fetchCustomers();
     }, []);
+
+    const handleDelete = async (userId) => {
+        if (!window.confirm("Are you sure you want to delete this customer? This will also delete their wallet.")) return;
+        try {
+            const { data } = await axios.post('/api/user/delete-customer', { userId });
+            if (data.success) {
+                toast.success(data.message);
+                fetchCustomers();
+            } else {
+                toast.error(data.message);
+            }
+        } catch (error) {
+            toast.error(error.message);
+        }
+    }
+
+    const handleEditUpdate = async (e) => {
+        e.preventDefault();
+        try {
+            const { data } = await axios.post('/api/user/update-customer', {
+                userId: editingCustomer._id,
+                ...editingCustomer
+            });
+            if (data.success) {
+                toast.success(data.message);
+                setShowEditModal(false);
+                fetchCustomers();
+            } else {
+                toast.error(data.message);
+            }
+        } catch (error) {
+            toast.error(error.message);
+        }
+    }
 
     const filteredCustomers = customers.filter(c =>
         c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -93,10 +132,11 @@ const Customers = () => {
                                 <th className="text-center p-4">Orders</th>
                                 <th className="text-right p-4">Total Spent</th>
                                 <th className="text-right p-4">Joined</th>
+                                <th className="p-4 text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredCustomers.map((customer, index) => (
+                            {filteredCustomers.map((customer) => (
                                 <tr key={customer._id} className="border-t border-border hover:bg-blue-50/50 transition-colors">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
@@ -128,6 +168,24 @@ const Customers = () => {
                                     <td className="p-4 text-right text-xs text-text-muted">
                                         {new Date(customer.createdAt).toLocaleDateString()}
                                     </td>
+                                    <td className="p-4 text-center">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => { setEditingCustomer(customer); setShowEditModal(true); }}
+                                                className="p-1.5 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                                                title="Edit Customer"
+                                            >
+                                                ✏️
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(customer._id)}
+                                                className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                                                title="Delete Customer"
+                                            >
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -140,6 +198,75 @@ const Customers = () => {
                     </div>
                 )}
             </div>
+
+            {/* Edit Modal */}
+            {showEditModal && editingCustomer && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in-up">
+                    <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+                        <div className="p-6 border-b border-border flex justify-between items-center bg-slate-50">
+                            <h2 className="text-xl font-bold font-outfit">Edit Customer</h2>
+                            <button onClick={() => setShowEditModal(false)} className="text-text-muted hover:text-black text-xl">✕</button>
+                        </div>
+                        <form onSubmit={handleEditUpdate} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-text-muted uppercase mb-1">Full Name</label>
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    value={editingCustomer.name}
+                                    onChange={e => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-text-muted uppercase mb-1">Email</label>
+                                <input
+                                    type="email"
+                                    className="input-field"
+                                    value={editingCustomer.email}
+                                    onChange={e => setEditingCustomer({ ...editingCustomer, email: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-text-muted uppercase mb-1">Phone</label>
+                                    <input
+                                        type="text"
+                                        className="input-field"
+                                        value={editingCustomer.phone}
+                                        onChange={e => setEditingCustomer({ ...editingCustomer, phone: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-text-muted uppercase mb-1">City</label>
+                                    <input
+                                        type="text"
+                                        className="input-field"
+                                        value={editingCustomer.city || ''}
+                                        onChange={e => setEditingCustomer({ ...editingCustomer, city: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-text-muted uppercase mb-1">Referral Balance (₹)</label>
+                                <input
+                                    type="number"
+                                    className="input-field"
+                                    value={editingCustomer.referralBalance}
+                                    onChange={e => setEditingCustomer({ ...editingCustomer, referralBalance: Number(e.target.value) })}
+                                    required
+                                />
+                            </div>
+                            <div className="pt-4 flex gap-3">
+                                <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 btn-outline py-3">Cancel</button>
+                                <button type="submit" className="flex-1 btn-primary py-3 hover-glow">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

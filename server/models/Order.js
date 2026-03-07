@@ -63,7 +63,8 @@ const orderSchema = new mongoose.Schema({
         courierName: String,
         trackingNumber: String,
         updatedAt: Date
-    }
+    },
+    displayId: { type: String, unique: true }
 }, { timestamps: true });
 
 const Order = mongoose.models.order || mongoose.model('order', orderSchema);

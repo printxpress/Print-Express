@@ -7,6 +7,7 @@ import Coupon from '../models/Coupon.js';
 import ShopSettings from '../models/ShopSettings.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
+import Counter from '../models/Counter.js';
 import { v2 as cloudinary } from 'cloudinary';
 
 const razorpay = new Razorpay({
@@ -131,8 +132,8 @@ export const placePrintOrder = async (req, res) => {
 
             docPrintCharge *= (opts.copies || 1);
 
-            const billingSheets = isDouble ? Math.ceil(effectivePages / 2) : effectivePages;
-            const docSheets = billingSheets * (opts.copies || 1);
+            const totalPagesToPrint = effectivePages * (opts.copies || 1);
+            const docSheets = isDouble ? Math.ceil(totalPagesToPrint / 2) : totalPagesToPrint;
             totalSheets += docSheets;
 
             let docBindCharge = 0;
@@ -167,7 +168,16 @@ export const placePrintOrder = async (req, res) => {
         }
 
         const subtotal = totalPrintingCharge + totalBindingCharge + deliveryCharge;
-        let finalAmount = Math.max(0, subtotal - (couponDiscount || 0) - (walletUsed || 0));
+
+        // Referral Discount (10% max)
+        const user = await User.findById(userId);
+        let referralDiscount = 0;
+        if (user && user.referralBalance > 0) {
+            const maxDiscount = subtotal * 0.1;
+            referralDiscount = Math.min(user.referralBalance, maxDiscount);
+        }
+
+        let finalAmount = Math.max(0, subtotal - (couponDiscount || 0) - (walletUsed || 0) - referralDiscount);
 
         if (isNaN(totalPrintingCharge)) throw new Error("Invalid printing charge calculation");
         if (isNaN(deliveryCharge)) deliveryCharge = 0;
@@ -190,14 +200,29 @@ export const placePrintOrder = async (req, res) => {
             await User.findByIdAndUpdate(userId, { walletBalance: wallet.balance });
         }
 
+        // Handle Referral Balance Deduction
+        if (referralDiscount > 0) {
+            await User.findByIdAndUpdate(userId, { $inc: { referralBalance: -referralDiscount } });
+            // Logic to add a transaction entry if needed, but the model only has wallet transactions
+        }
+
         // 6. Handle Coupon Usage
         if (couponCode) {
             await Coupon.findOneAndUpdate({ code: couponCode }, { $inc: { usedCount: 1 } });
         }
 
-        // 7. Create Order — printOptions is an array
-        const order = await Order.create({
+        // 6. Generate Sequential Display ID
+        const counter = await Counter.findOneAndUpdate(
+            { id: 'orderId' },
+            { $inc: { seq: 1 } },
+            { new: true, upsert: true }
+        );
+        const displayId = `ANPRE${String(counter.seq).padStart(3, '0')}`;
+
+        // 7. Create Order
+        const newOrder = new Order({
             userId,
+            displayId,
             files: uploadedFiles,
             printOptions: optionsArray.map((opts, i) => ({ ...opts, fileIndex: i })),
             pricing: {
@@ -205,6 +230,7 @@ export const placePrintOrder = async (req, res) => {
                 bindingCharge: totalBindingCharge,
                 deliveryCharge,
                 couponDiscount: couponDiscount || 0,
+                referralDiscount: referralDiscount || 0,
                 walletUsed: walletUsed || 0,
                 totalAmount: finalAmount
             },
@@ -234,8 +260,17 @@ export const placeOrder = async (req, res) => {
         // In a real app, we'd calculate the amount here. 
         // For this migration, we'll trust the logic or implement a simple version.
         // Since the requirement is to replace COD with UPI:
+        // Generate Sequential Display ID
+        const counter = await Counter.findOneAndUpdate(
+            { id: 'orderId' },
+            { $inc: { seq: 1 } },
+            { new: true, upsert: true }
+        );
+        const displayId = `ANPRE${String(counter.seq).padStart(3, '0')}`;
+
         const order = await Order.create({
             userId,
+            displayId,
             items, // Array of {product, quantity}
             deliveryDetails: { addressId: address },
             payment: {
@@ -268,9 +303,18 @@ export const createPosOrder = async (req, res) => {
     try {
         const { customer, items, totalAmount, paymentMethod } = req.body;
 
+        // Generate Sequential Display ID
+        const counter = await Counter.findOneAndUpdate(
+            { id: 'orderId' },
+            { $inc: { seq: 1 } },
+            { new: true, upsert: true }
+        );
+        const displayId = `ANPRE${String(counter.seq).padStart(3, '0')}`;
+
         // POS orders are immediately 'ready' or 'delivered'
         const order = await Order.create({
-            userId: req.body.userId || undefined, // Use undefined for guest/direct sales
+            userId: customer._id, // Use undefined for guest/direct sales
+            displayId,
             printOptions: { mode: 'B/W', side: 'Single', binding: 'Loose Papers' }, // Default for POS items
             pricing: {
                 totalAmount,
@@ -422,8 +466,8 @@ export const updateOrderAndRecalculate = async (req, res) => {
 
             docPrintCharge *= (opts.copies || 1);
 
-            const billingSheets = isDouble ? Math.ceil(effectivePages / 2) : effectivePages;
-            const docSheets = billingSheets * (opts.copies || 1);
+            const totalPagesToPrint = effectivePages * (opts.copies || 1);
+            const docSheets = isDouble ? Math.ceil(totalPagesToPrint / 2) : totalPagesToPrint;
             totalSheets += docSheets;
 
             let docBindCharge = 0;
@@ -511,9 +555,14 @@ export const generateThermalBillPDF = async (req, res) => {
 
         doc.fillColor('#444444')
             .fontSize(20)
-            .text('INVOICE', 50, 50, { align: 'right' })
+            .text('INVOICE', 50, 50, { align: 'right' });
+
+        // Highlight Order ID in logo color
+        doc.fillColor('#1e40af') // Primary blue color
             .fontSize(10)
-            .text(`Order ID: #${order._id.toString().slice(-8).toUpperCase()}`, 200, 65, { align: 'right' })
+            .text(`Order ID: ${order.displayId || '#' + order._id.toString().slice(-8).toUpperCase()}`, 200, 65, { align: 'right' });
+
+        doc.fillColor('#444444')
             .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 200, 80, { align: 'right' })
             .moveDown();
 

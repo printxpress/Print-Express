@@ -1,5 +1,5 @@
 import express from 'express';
-import { isAuth, logout, sendOtp, verifyOtp, getAllUsers, updateProfile } from '../controllers/userController.js';
+import { isAuth, logout, sendOtp, verifyOtp, getAllUsers, updateProfile, updateCustomer, deleteCustomer } from '../controllers/userController.js';
 import authUser from '../middlewares/authUser.js';
 import { loginRateLimiter } from '../middlewares/loginRateLimiter.js';
 
@@ -11,5 +11,7 @@ userRouter.get('/is-auth', authUser, isAuth)
 userRouter.get('/logout', authUser, logout)
 userRouter.get('/all', getAllUsers)
 userRouter.post('/update-profile', authUser, updateProfile)
+userRouter.post('/update-customer', updateCustomer) // TODO: Add authSeller middleware if available
+userRouter.post('/delete-customer', deleteCustomer)
 
 export default userRouter

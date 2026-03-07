@@ -94,6 +94,7 @@ const PrintPage = () => {
         binding: 0,
         delivery: 40,
         couponDiscount: 0,
+        referralDiscount: 0,
         walletUsed: 0,
         total: 0
     });
@@ -258,9 +259,16 @@ const PrintPage = () => {
 
         const subtotal = totalPrintCharge + totalBindCharge + deliveryCharge;
         const couponDiscount = couponApplied?.discount || 0;
-        const afterCoupon = Math.max(0, subtotal - couponDiscount);
-        const walletUsed = useWallet ? Math.min(walletBalance, afterCoupon) : 0;
-        const total = afterCoupon - walletUsed;
+
+        // Referral Discount Calculation (10% max)
+        let referralDiscount = 0;
+        if (user && user.referralBalance > 0) {
+            referralDiscount = Math.min(user.referralBalance, subtotal * 0.1);
+        }
+
+        const afterDiscounts = Math.max(0, subtotal - couponDiscount - referralDiscount);
+        const walletUsed = useWallet ? Math.min(walletBalance, afterDiscounts) : 0;
+        const total = afterDiscounts - walletUsed;
 
         setDocumentPrices(prices);
         setPricing({
@@ -270,6 +278,7 @@ const PrintPage = () => {
             binding: totalBindCharge,
             delivery: deliveryCharge,
             couponDiscount,
+            referralDiscount,
             walletUsed,
             total,
             weight: calcWeight
@@ -518,15 +527,17 @@ const PrintPage = () => {
     const allDocTotalpgs = fileMetadata.reduce((sum, meta, i) => {
         const opts = documentsOptions[i] || getDefaultOptions();
         const tPgs = opts.pageRangeType === 'All' ? (meta.pageCount || 0) : calculateCustomPageCount(opts.customPages);
-        return sum + (tPgs * (opts.copies || 1));
+        const copies = opts.copies || 1;
+        return sum + (tPgs * copies);
     }, 0);
 
     const allDocTotalSheets = fileMetadata.reduce((sum, meta, i) => {
         const opts = documentsOptions[i] || getDefaultOptions();
         const tPgs = opts.pageRangeType === 'All' ? (meta.pageCount || 0) : calculateCustomPageCount(opts.customPages);
         const ePgs = opts.pagesPerSheet === 2 ? Math.ceil(tPgs / 2) : tPgs;
-        const bSheets = opts.side === 'Double' ? Math.ceil(ePgs / 2) : ePgs;
-        return sum + (bSheets * (opts.copies || 1));
+        const totalPagesToPrint = ePgs * (opts.copies || 1);
+        const bSheets = opts.side === 'Double' ? Math.ceil(totalPagesToPrint / 2) : totalPagesToPrint;
+        return sum + bSheets;
     }, 0);
 
     return (
@@ -626,6 +637,12 @@ const PrintPage = () => {
                                     <div className="flex justify-between text-green-600 font-semibold">
                                         <span>Coupon Discount</span>
                                         <span>-₹{pricing.couponDiscount.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {pricing.referralDiscount > 0 && (
+                                    <div className="flex justify-between text-indigo-600 font-semibold">
+                                        <span>Referral Discount (10%)</span>
+                                        <span>-₹{pricing.referralDiscount.toFixed(2)}</span>
                                     </div>
                                 )}
                                 {pricing.walletUsed > 0 && (
