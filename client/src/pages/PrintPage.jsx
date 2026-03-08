@@ -8,7 +8,7 @@ import { detectDocument, formatFileSize, getDocumentIcon } from '../utils/docume
 import { assets } from '../assets/assets';
 
 const PrintPage = () => {
-    const { axios, user, services, shopSettings } = useAppContext();
+    const { axios, user, services, shopSettings, pricingRules } = useAppContext();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [files, setFiles] = useState([]);
@@ -127,26 +127,27 @@ const PrintPage = () => {
         }
     });
 
-    // Fetch wallet balance and pricing rules on mount
+    // Sync local rules state with global pricingRules
     useEffect(() => {
-        const fetchData = async () => {
+        if (pricingRules?.rules) {
+            const r = pricingRules.rules;
+            setRules(prev => ({
+                printing: r.printing || prev.printing,
+                additional: r.additional || prev.additional,
+                delivery_tiers: r.delivery_tiers || prev.delivery_tiers
+            }));
+        }
+    }, [pricingRules]);
+
+    // Fetch wallet balance on mount
+    useEffect(() => {
+        const fetchWallet = async () => {
             try {
-                const [walletRes, pricingRes] = await Promise.all([
-                    axios.get('/api/wallet/balance'),
-                    axios.get('/api/pricing')
-                ]);
-                if (walletRes.data.success) setWalletBalance(walletRes.data.balance);
-                if (pricingRes.data.success) {
-                    const r = pricingRes.data.pricing.rules;
-                    setRules({
-                        printing: r.printing || rules.printing,
-                        additional: r.additional || rules.additional,
-                        delivery_tiers: r.delivery_tiers || rules.delivery_tiers
-                    });
-                }
+                const { data } = await axios.get('/api/wallet/balance');
+                if (data.success) setWalletBalance(data.balance);
             } catch (e) { }
         };
-        fetchData();
+        fetchWallet();
     }, [user]);
 
     // Auto-fill address from user profile
@@ -218,15 +219,8 @@ const PrintPage = () => {
 
             let docPrintCharge = 0;
             if (isDouble) {
-                if (effectivePages <= 1) {
-                    // Single page marked double: charge single rate
-                    docPrintCharge = singleRate;
-                } else if (effectivePages % 2 !== 0) {
-                    // Odd pages: pairs at doubleRate + 1 at singleRate
-                    docPrintCharge = ((effectivePages - 1) * doubleRate) + (1 * singleRate);
-                } else {
-                    docPrintCharge = effectivePages * doubleRate;
-                }
+                // Simplified: use doubleRate for all pages if Double is selected
+                docPrintCharge = effectivePages * doubleRate;
             } else {
                 docPrintCharge = effectivePages * singleRate;
             }
