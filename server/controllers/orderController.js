@@ -220,7 +220,7 @@ export const placePrintOrder = async (req, res) => {
         const displayId = `ANPRE${String(counter.seq).padStart(3, '0')}`;
 
         // 7. Create Order
-        const newOrder = new Order({
+        const order = await Order.create({
             userId,
             displayId,
             files: uploadedFiles,
@@ -243,6 +243,26 @@ export const placePrintOrder = async (req, res) => {
             couponCode: couponCode || '',
             status: 'received'
         });
+
+        // 8. Handle First Order Referral Credit
+        const userOrdersCount = await Order.countDocuments({ userId });
+        if (userOrdersCount === 1) {
+            const currentUser = await User.findById(userId);
+            if (currentUser && currentUser.referredBy) {
+                // Credit referrer ₹100
+                await User.findByIdAndUpdate(currentUser.referredBy, { $inc: { referralBalance: 100 } });
+                const referrerWallet = await Wallet.findOne({ userId: currentUser.referredBy });
+                if (referrerWallet) {
+                    referrerWallet.transactions.push({
+                        type: 'credit',
+                        amount: 100,
+                        description: `Referral bonus for ${currentUser.phone}'s first order`,
+                        addedBy: 'referral'
+                    });
+                    await referrerWallet.save();
+                }
+            }
+        }
 
         return res.json({ success: true, message: "Order Placed Successfully", orderId: order._id });
 
@@ -280,6 +300,26 @@ export const placeOrder = async (req, res) => {
             status: 'received',
             fulfillment: { method: 'delivery' }
         });
+
+        // Handle First Order Referral Credit
+        const userOrdersCount = await Order.countDocuments({ userId });
+        if (userOrdersCount === 1) {
+            const currentUser = await User.findById(userId);
+            if (currentUser && currentUser.referredBy) {
+                // Credit referrer ₹100
+                await User.findByIdAndUpdate(currentUser.referredBy, { $inc: { referralBalance: 100 } });
+                const referrerWallet = await Wallet.findOne({ userId: currentUser.referredBy });
+                if (referrerWallet) {
+                    referrerWallet.transactions.push({
+                        type: 'credit',
+                        amount: 100,
+                        description: `Referral bonus for ${currentUser.phone}'s first order`,
+                        addedBy: 'referral'
+                    });
+                    await referrerWallet.save();
+                }
+            }
+        }
 
         res.json({ success: true, message: "Order Placed Successfully", orderId: order._id });
     } catch (error) {

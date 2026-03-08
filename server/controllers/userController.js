@@ -80,40 +80,8 @@ export const verifyOtp = async (req, res) => {
                 referredBy
             });
 
-            // Initialize Wallet and add referral rewards
+            // Initialize Wallet
             const wallet = await Wallet.create({ userId: user._id, balance: 0, transactions: [] });
-
-            if (referredBy) {
-                // Credit referee (new user) ₹50 to referralBalance
-                user.referralBalance = 50;
-                await user.save();
-
-                // Store in wallet transactions for history
-                const wallet = await Wallet.findOne({ userId: user._id });
-                if (wallet) {
-                    wallet.transactions.push({
-                        type: 'credit',
-                        amount: 50,
-                        description: 'Referral signup bonus',
-                        addedBy: 'referral'
-                    });
-                    await wallet.save();
-                }
-
-                // Credit referrer ₹100 to referralBalance
-                await User.findByIdAndUpdate(referredBy, { $inc: { referralBalance: 100 } });
-
-                const referrerWallet = await Wallet.findOne({ userId: referredBy });
-                if (referrerWallet) {
-                    referrerWallet.transactions.push({
-                        type: 'credit',
-                        amount: 100,
-                        description: `Referral bonus for ${phone}`,
-                        addedBy: 'referral'
-                    });
-                    await referrerWallet.save();
-                }
-            }
         }
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });

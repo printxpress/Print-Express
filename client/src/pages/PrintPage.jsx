@@ -1337,20 +1337,22 @@ const PrintPage = () => {
                                     { id: 'UPI', icon: '💳', label: 'Online Payment', desc: 'Standard Razorpay' },
                                     { id: 'Wallet', icon: '🪙', label: 'Wallet', desc: `Balance: ₹${walletBalance}` },
                                     { id: 'UPI+Wallet', icon: '🌗', label: 'Split Pay', desc: 'Wallet + Razorpay' },
+                                    { id: 'Referral', icon: '🎁', label: 'Referral amount balance', desc: `Balance: ₹${user?.referralBalance || 0}` },
                                 ].map(pm => (
                                     <button
                                         type="button"
                                         key={pm.id}
                                         onClick={() => {
+                                            if (pm.id === 'Referral') return;
                                             setPaymentMethod(pm.id);
                                             if (pm.id === 'Wallet' || pm.id === 'UPI+Wallet') setUseWallet(true);
                                             else setUseWallet(false);
                                         }}
-                                        disabled={pm.id === 'Wallet' && walletBalance <= 0}
+                                        disabled={(pm.id === 'Wallet' && walletBalance <= 0) || pm.id === 'Referral'}
                                         className={`p-4 rounded-xl border-2 transition-all text-left space-y-1 ${paymentMethod === pm.id
                                             ? 'border-blue-600 bg-blue-50 shadow-md'
                                             : 'border-border hover:border-blue-300'
-                                            } ${pm.id === 'Wallet' && walletBalance <= 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                            } ${(pm.id === 'Wallet' && walletBalance <= 0) ? 'opacity-40 cursor-not-allowed' : ''} ${pm.id === 'Referral' ? 'bg-indigo-50 border-indigo-200 cursor-default hover:border-indigo-200 opacity-90' : ''}`}
                                     >
                                         <span className="text-2xl">{pm.icon}</span>
                                         <p className="font-bold text-sm">{pm.label}</p>

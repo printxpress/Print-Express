@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { assets } from '../assets/assets'
+import { useAppContext } from '../context/AppContext'
 
 const MainBanner = () => {
+  const { user, setShowUserLogin } = useAppContext();
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  const handleReferClick = () => {
+    if (user && user.referralCode) {
+      const message = `Sign up on Print Express using my referral code ${user.referralCode} and get ₹50 free wallet balance! Order prints online easily.`;
+      const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      setShowUserLogin(true);
+    }
+  };
 
   const sliderImages = [
     assets.anbu_card,
@@ -117,7 +129,7 @@ const MainBanner = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className='mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 w-full'>
+            <div className='mt-8 flex flex-col sm:flex-row flex-wrap items-center justify-center lg:justify-start gap-4 w-full'>
               <Link to="/print" className='w-full sm:w-auto px-10 py-5 bg-blue-700 hover:bg-black text-white rounded-2xl text-xl font-bold transition-all shadow-2xl shadow-blue-200 flex items-center justify-center gap-2 group transform hover:-translate-y-1'>
                 🚀 Start Printing
               </Link>
@@ -129,6 +141,12 @@ const MainBanner = () => {
               >
                 📦 Bulk Order
               </a>
+              <button
+                onClick={handleReferClick}
+                className='w-full sm:w-auto px-10 py-5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl text-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 transform hover:-translate-y-1 cursor-pointer'
+              >
+                💸 Refer & Earn
+              </button>
             </div>
 
             {/* Same Day Delivery Info */}

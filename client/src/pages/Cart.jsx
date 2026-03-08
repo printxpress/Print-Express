@@ -187,6 +187,16 @@ const Cart = () => {
                     <div className="w-full border border-gray-300 bg-white px-3 py-2 mt-2 outline-none flex items-center gap-2 font-medium">
                         <span>💳</span> Online Payment (Razorpay)
                     </div>
+                    {user?.referralBalance > 0 && (
+                        <div className="w-full border border-gray-300 bg-indigo-50 text-indigo-800 px-3 py-2 mt-2 outline-none flex items-center justify-between font-medium">
+                            <div className="flex items-center gap-2">
+                                <span>🎁</span> Referral amount balance
+                            </div>
+                            <span className="text-xs">
+                                ₹{user.referralBalance}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <hr className="border-gray-300" />
