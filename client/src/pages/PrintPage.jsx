@@ -218,9 +218,11 @@ const PrintPage = () => {
 
             let docPrintCharge = 0;
             if (isDouble) {
-                if (effectivePages === 1) {
-                    docPrintCharge = doubleRate * 0.5;
+                if (effectivePages <= 1) {
+                    // Single page marked double: charge single rate
+                    docPrintCharge = singleRate;
                 } else if (effectivePages % 2 !== 0) {
+                    // Odd pages: pairs at doubleRate + 1 at singleRate
                     docPrintCharge = ((effectivePages - 1) * doubleRate) + (1 * singleRate);
                 } else {
                     docPrintCharge = effectivePages * doubleRate;

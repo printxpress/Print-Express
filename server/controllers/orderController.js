@@ -116,9 +116,9 @@ export const placePrintOrder = async (req, res) => {
 
             let docPrintCharge = 0;
             if (isDouble) {
-                if (effectivePages === 1) {
-                    // Single page double-sided: halve the charge
-                    docPrintCharge = doubleRate * 0.5;
+                if (effectivePages <= 1) {
+                    // Single page double-sided: charge single rate
+                    docPrintCharge = singleRate;
                 } else if (effectivePages % 2 !== 0) {
                     // Odd pages: paired pages at double rate + last page at single rate
                     const pairedPages = effectivePages - 1;
