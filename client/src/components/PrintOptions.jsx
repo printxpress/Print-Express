@@ -1,13 +1,17 @@
 import React from 'react';
+import { useAppContext } from '../context/AppContext';
 
 const PrintOptions = () => {
+    const { pricingRules } = useAppContext();
+    const rules = pricingRules?.rules;
+
     const printOptions = [
         {
             size: "A4 B/W",
             title: "Standard B/W",
             desc: "For daily documents and reports.",
-            single: 0.75,
-            double: 0.5,
+            single: rules?.printing?.bw?.single || 0.75,
+            double: rules?.printing?.bw?.double || 0.5,
             icon: "📄",
             color: "slate"
         },
@@ -15,8 +19,8 @@ const PrintOptions = () => {
             size: "A3 B/W",
             title: "Large Format B/W",
             desc: "Blueprints and architectural plans.",
-            single: 2,
-            double: 1.5,
+            single: rules?.printing?.bw?.a3_single || 2,
+            double: rules?.printing?.bw?.a3_double || 1.5,
             icon: "🗞️",
             color: "zinc"
         },
@@ -24,8 +28,8 @@ const PrintOptions = () => {
             size: "A4 Colour",
             title: "Vibrant A4",
             desc: "Marketing materials and resumes.",
-            single: 8,
-            double: 8,
+            single: rules?.printing?.color?.single || 8,
+            double: rules?.printing?.color?.double || 8,
             icon: "🎨",
             color: "blue"
         },
@@ -33,8 +37,8 @@ const PrintOptions = () => {
             size: "A3 Colour",
             title: "Pro Format Colour",
             desc: "Posters and high-impact presentations.",
-            single: 20,
-            double: 20,
+            single: rules?.printing?.color?.a3_single || 20,
+            double: rules?.printing?.color?.a3_double || 20,
             icon: "🌈",
             color: "orange"
         }
@@ -43,13 +47,13 @@ const PrintOptions = () => {
     const bindingOptions = [
         {
             type: "Spiral",
-            price: 15,
+            price: rules?.additional?.binding || 15,
             desc: "Flexible coil binding",
             icon: "🌀"
         },
         {
             type: "Chart Binding",
-            price: 10,
+            price: rules?.additional?.chart_binding || 10,
             desc: "Standard school/project binding",
             icon: "📊"
         }

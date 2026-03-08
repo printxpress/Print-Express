@@ -1,28 +1,58 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
-
-const services = [
-  { name: 'B/W Printing', icon: '📄', desc: 'Fast and crisp black & white document printing for all your needs.', price: 'From ₹0.75/page', link: '/print', color: 'blue' },
-  { name: 'Color Printing', icon: '🌈', desc: 'Vibrant, high-quality color prints to make your documents stand out.', price: 'From ₹8/page', link: '/print', color: 'orange' },
-  { name: 'Spiral Binding', icon: '📚', desc: 'Secure and professional spiral binding for reports, notebooks, and more.', price: 'From ₹15', link: '/print', color: 'purple' },
-  { name: 'Chart Binding', icon: '📊', desc: 'Specialized binding for large charts, maps, and engineering drawings.', price: 'From ₹10', link: '/print', color: 'green' },
-  { name: 'Bulk Printing', icon: '🖨️', desc: 'Large volume printing for offices, schools, and events at discounted rates.', price: 'Custom Quote', link: '/print', color: 'blue' },
-  { name: 'Express Delivery', icon: '🚀', desc: 'Same-day printing and delivery to your doorstep across India.', price: 'From ₹40', link: '#estimator', color: 'teal' }
-]
-
-const getColorClasses = (color) => {
-  const colors = {
-    blue: 'bg-blue-50 border-blue-200 hover:border-blue-400 hover:shadow-blue-100',
-    orange: 'bg-orange-50 border-orange-200 hover:border-orange-400 hover:shadow-orange-100',
-    green: 'bg-green-50 border-green-200 hover:border-green-400 hover:shadow-green-100',
-    purple: 'bg-purple-50 border-purple-200 hover:border-purple-400 hover:shadow-purple-100',
-    red: 'bg-red-50 border-red-200 hover:border-red-400 hover:shadow-red-100',
-    teal: 'bg-teal-50 border-teal-200 hover:border-teal-400 hover:shadow-teal-100'
-  };
-  return colors[color] || colors.blue;
-};
-
 const Categories = () => {
+  const { pricingRules } = useAppContext();
+  const rules = pricingRules?.rules;
+
+  const services = [
+    {
+      name: 'B/W Printing',
+      icon: '📄',
+      desc: 'Fast and crisp black & white document printing for all your needs.',
+      price: `From ₹${rules?.printing?.bw?.single || '0.75'}/page`,
+      link: '/print',
+      color: 'blue'
+    },
+    {
+      name: 'Color Printing',
+      icon: '🌈',
+      desc: 'Vibrant, high-quality color prints to make your documents stand out.',
+      price: `From ₹${rules?.printing?.color?.single || '8'}/page`,
+      link: '/print',
+      color: 'orange'
+    },
+    {
+      name: 'Spiral Binding',
+      icon: '📚',
+      desc: 'Secure and professional spiral binding for reports, notebooks, and more.',
+      price: `From ₹${rules?.additional?.binding || '15'}`,
+      link: '/print',
+      color: 'purple'
+    },
+    {
+      name: 'Chart Binding',
+      icon: '📊',
+      desc: 'Specialized binding for large charts, maps, and engineering drawings.',
+      price: `From ₹${rules?.additional?.chart_binding || '10'}`,
+      link: '/print',
+      color: 'green'
+    },
+    {
+      name: 'Bulk Printing',
+      icon: '🖨️',
+      desc: 'Large volume printing for offices, schools, and events at discounted rates.',
+      price: 'Custom Quote',
+      link: '/print',
+      color: 'blue'
+    },
+    {
+      name: 'Express Delivery',
+      icon: '🚀',
+      desc: 'Same-day printing and delivery to your doorstep across India.',
+      price: 'From ₹40',
+      link: '#estimator',
+      color: 'teal'
+    }
+  ]
+
   return (
     <div className='mt-24 space-y-12'>
       <div className="flex flex-col items-center text-center space-y-2">

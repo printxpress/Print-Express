@@ -4,7 +4,7 @@ import { assets } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
 
 const MainBanner = () => {
-  const { user, setShowUserLogin } = useAppContext();
+  const { user, setShowUserLogin, pricingRules } = useAppContext();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const handleReferClick = () => {
@@ -87,7 +87,9 @@ const MainBanner = () => {
                 </div>
                 <div className="relative z-10 w-full">
                   <h3 className="font-bold font-outfit text-slate-900 text-sm mb-1">B&W</h3>
-                  <p className="text-slate-900 font-black text-xl leading-none">₹0.50 <span className="text-[10px] font-bold text-slate-400">/pg</span></p>
+                  <p className="text-slate-900 font-black text-xl leading-none">
+                    ₹{pricingRules?.rules?.printing?.bw?.double || '0.50'} <span className="text-[10px] font-bold text-slate-400">/pg</span>
+                  </p>
                 </div>
               </Link>
 
@@ -99,7 +101,9 @@ const MainBanner = () => {
                 </div>
                 <div className="relative z-10 w-full">
                   <h3 className="font-bold font-outfit text-slate-900 text-sm mb-1">Color</h3>
-                  <p className="text-blue-700 font-black text-xl leading-none">₹8 <span className="text-[10px] font-bold text-slate-400">/pg</span></p>
+                  <p className="text-blue-700 font-black text-xl leading-none">
+                    ₹{pricingRules?.rules?.printing?.color?.single || '8'} <span className="text-[10px] font-bold text-slate-400">/pg</span>
+                  </p>
                 </div>
               </Link>
 
@@ -111,7 +115,9 @@ const MainBanner = () => {
                 </div>
                 <div className="relative z-10 w-full">
                   <h3 className="font-bold font-outfit text-slate-900 text-sm mb-1">Spiral</h3>
-                  <p className="text-orange-600 font-black text-xl leading-none">₹15 <span className="text-[10px] font-bold text-slate-400">/book</span></p>
+                  <p className="text-orange-600 font-black text-xl leading-none">
+                    ₹{pricingRules?.rules?.additional?.binding || '15'} <span className="text-[10px] font-bold text-slate-400">/book</span>
+                  </p>
                 </div>
               </Link>
 
@@ -123,7 +129,9 @@ const MainBanner = () => {
                 </div>
                 <div className="relative z-10 w-full">
                   <h3 className="font-bold font-outfit text-slate-900 text-sm mb-1">Chart Binding</h3>
-                  <p className="text-purple-600 font-black text-xl leading-none">₹10 <span className="text-[10px] font-bold text-slate-400">/unit</span></p>
+                  <p className="text-purple-600 font-black text-xl leading-none">
+                    ₹{pricingRules?.rules?.additional?.chart_binding || '10'} <span className="text-[10px] font-bold text-slate-400">/unit</span>
+                  </p>
                 </div>
               </Link>
             </div>

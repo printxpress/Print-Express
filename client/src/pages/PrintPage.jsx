@@ -1033,7 +1033,7 @@ const PrintPage = () => {
                                                     : 'bg-white border-slate-100 hover:border-purple-300'
                                                 }`}
                                         >
-                                            <div className="absolute top-0 right-0 bg-purple-600 text-white text-[8px] px-1.5 py-0.5 rounded-bl-lg z-10">₹0.30</div>
+                                            <div className="absolute top-0 right-0 bg-purple-600 text-white text-[8px] px-1.5 py-0.5 rounded-bl-lg z-10">₹{rules?.additional?.staple_binding || '0.30'}</div>
                                             <div className="w-10 h-10 md:w-8 md:h-8 rounded overflow-hidden">
                                                 <img src={assets.staple_icon} alt="Staple" className="w-full h-full object-contain" />
                                             </div>
@@ -1048,7 +1048,7 @@ const PrintPage = () => {
                                                 : 'bg-white border-slate-100 hover:border-blue-300'
                                                 }`}
                                         >
-                                            <div className="absolute top-0 right-0 bg-blue-600 text-white text-[8px] px-1.5 py-0.5 rounded-bl-lg z-10">₹{options.paperSize === 'A3' ? 40 : 15}</div>
+                                            <div className="absolute top-0 right-0 bg-blue-600 text-white text-[8px] px-1.5 py-0.5 rounded-bl-lg z-10">₹{options.paperSize === 'A3' ? (rules?.additional?.a3_binding || 40) : (rules?.additional?.binding || 15)}</div>
                                             <div className="w-10 h-10 md:w-8 md:h-8 rounded overflow-hidden">
                                                 <img src={assets.spiral_binding_icon} alt="Spiral" className="w-full h-full object-cover" />
                                             </div>
@@ -1065,7 +1065,7 @@ const PrintPage = () => {
                                                 : 'bg-white border-slate-100 hover:border-orange-300'
                                                 }`}
                                         >
-                                            <div className="absolute top-0 right-0 bg-orange-600 text-white text-[8px] px-1.5 py-0.5 rounded-bl-lg z-10">₹{options.paperSize === 'A3' ? 20 : 10}</div>
+                                            <div className="absolute top-0 right-0 bg-orange-600 text-white text-[8px] px-1.5 py-0.5 rounded-bl-lg z-10">₹{options.paperSize === 'A3' ? (rules?.additional?.a3_chart_binding || 20) : (rules?.additional?.chart_binding || 10)}</div>
                                             <div className="w-10 h-10 md:w-8 md:h-8 rounded overflow-hidden">
                                                 <img src={assets.chart_binding_icon} alt="Chart" className="w-full h-full object-cover" />
                                             </div>

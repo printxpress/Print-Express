@@ -23,7 +23,7 @@ const PricingTable = () => {
     const services = [
         {
             name: "Black & White Printing",
-            desc: "A4: ₹0.75 | A3: ₹2.00 (Standard Rates)",
+            desc: `A4: ₹${rules?.printing?.bw?.single || '0.75'} | A3: ₹${rules?.printing?.bw?.a3_single || '2.00'} (Standard Rates)`,
             price: rules?.printing?.bw?.single || 0.75,
             unit: "page",
             icon: "📄",
@@ -31,7 +31,7 @@ const PricingTable = () => {
         },
         {
             name: "Color Printing",
-            desc: "A4: ₹8.00 | A3: ₹20.00 (Vibrant Laser)",
+            desc: `A4: ₹${rules?.printing?.color?.single || '8.00'} | A3: ₹${rules?.printing?.color?.a3_single || '20.00'} (Vibrant Laser)`,
             price: rules?.printing?.color?.single || 8.0,
             unit: "page",
             icon: "🌈",
@@ -39,7 +39,7 @@ const PricingTable = () => {
         },
         {
             name: "Spiral Binding",
-            desc: "A4: ₹15 | A3: ₹40 (Up to 300 sheets)",
+            desc: `A4: ₹${rules?.additional?.binding || '15'} | A3: ₹${rules?.additional?.a3_binding || '40'} (Up to 300 sheets)`,
             price: rules?.additional?.binding || 15,
             unit: "book",
             icon: "📚",
@@ -47,7 +47,7 @@ const PricingTable = () => {
         },
         {
             name: "Chart Binding",
-            desc: "A4: ₹10 | A3: ₹20 (Professional Finish)",
+            desc: `A4: ₹${rules?.additional?.chart_binding || '10'} | A3: ₹${rules?.additional?.a3_chart_binding || '20'} (Professional Finish)`,
             price: rules?.additional?.chart_binding || 10,
             unit: "set",
             icon: "📊",
