@@ -164,9 +164,22 @@ export const placePrintOrder = async (req, res) => {
         // Referral Discount (10% max)
         const user = await User.findById(userId);
         let referralDiscount = 0;
-        if (user && user.referralBalance > 0) {
-            const maxDiscount = subtotal * 0.1;
-            referralDiscount = Math.min(user.referralBalance, maxDiscount);
+
+        if (user) {
+            const hundredDaysAgo = new Date();
+            hundredDaysAgo.setDate(hundredDaysAgo.getDate() - 100);
+
+            // Filter valid credits (not expired and not fully used)
+            const validCredits = (user.referralCredits || []).filter(c =>
+                new Date(c.earnedAt) > hundredDaysAgo && (c.amount - c.usedAmount) > 0
+            );
+
+            const totalValidBalance = validCredits.reduce((sum, c) => sum + (c.amount - c.usedAmount), 0);
+
+            if (totalValidBalance > 0) {
+                const maxDiscount = subtotal * 0.1;
+                referralDiscount = Math.min(totalValidBalance, maxDiscount);
+            }
         }
 
         let finalAmount = Math.max(0, subtotal - (couponDiscount || 0) - (walletUsed || 0) - referralDiscount);
@@ -194,8 +207,21 @@ export const placePrintOrder = async (req, res) => {
 
         // Handle Referral Balance Deduction
         if (referralDiscount > 0) {
-            await User.findByIdAndUpdate(userId, { $inc: { referralBalance: -referralDiscount } });
-            // Logic to add a transaction entry if needed, but the model only has wallet transactions
+            let remainingToDeduct = referralDiscount;
+            const updatedCredits = user.referralCredits.map(credit => {
+                if (remainingToDeduct <= 0) return credit;
+
+                const available = credit.amount - credit.usedAmount;
+                const toDeduct = Math.min(available, remainingToDeduct);
+
+                remainingToDeduct -= toDeduct;
+                return { ...credit.toObject(), usedAmount: (credit.usedAmount || 0) + toDeduct };
+            });
+
+            await User.findByIdAndUpdate(userId, {
+                $inc: { referralBalance: -referralDiscount },
+                $set: { referralCredits: updatedCredits }
+            });
         }
 
         // 6. Handle Coupon Usage
@@ -242,7 +268,18 @@ export const placePrintOrder = async (req, res) => {
             const currentUser = await User.findById(userId);
             if (currentUser && currentUser.referredBy) {
                 // Credit referrer ₹100
-                await User.findByIdAndUpdate(currentUser.referredBy, { $inc: { referralBalance: 100 } });
+                const referralCredit = {
+                    amount: 100,
+                    earnedAt: new Date(),
+                    usedAmount: 0,
+                    description: `Referral bonus for ${currentUser.phone}'s first order`
+                };
+
+                await User.findByIdAndUpdate(currentUser.referredBy, {
+                    $inc: { referralBalance: 100 },
+                    $push: { referralCredits: referralCredit }
+                });
+
                 const referrerWallet = await Wallet.findOne({ userId: currentUser.referredBy });
                 if (referrerWallet) {
                     referrerWallet.transactions.push({

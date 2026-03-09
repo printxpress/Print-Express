@@ -20,6 +20,12 @@ const userSchema = new mongoose.Schema({
     cart: { type: Object, default: {} },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
     referralCode: { type: String, unique: true, sparse: true },
+    referralCredits: [{
+        amount: { type: Number, required: true },
+        earnedAt: { type: Date, default: Date.now },
+        usedAmount: { type: Number, default: 0 },
+        description: String
+    }],
     lastLogin: Date
 }, { timestamps: true, minimize: false });
 

@@ -141,14 +141,17 @@ const MainBanner = () => {
               <Link to="/print" className='w-full sm:w-auto px-10 py-5 bg-blue-700 hover:bg-black text-white rounded-2xl text-xl font-bold transition-all shadow-2xl shadow-blue-200 flex items-center justify-center gap-2 group transform hover:-translate-y-1'>
                 🚀 Start Printing
               </Link>
-              <a
-                href="https://wa.me/919894957422?text=Hello,%20I%20would%20like%20to%20place%20a%20bulk%20order."
-                target="_blank"
-                rel="noopener noreferrer"
-                className='w-full sm:w-auto px-10 py-5 bg-white border-2 border-slate-100 hover:border-blue-200 text-slate-700 rounded-2xl text-xl font-bold transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1'
-              >
-                📦 Bulk Order
-              </a>
+              <div className="flex flex-col items-center">
+                <a
+                  href="https://wa.me/919894957422?text=Hello,%20I%20would%20like%20to%20place%20a%20bulk%20order."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className='w-full sm:w-auto px-10 py-5 bg-white border-2 border-slate-100 hover:border-blue-200 text-slate-700 rounded-2xl text-xl font-bold transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1'
+                >
+                  📦 Bulk Order
+                </a>
+                <p className="text-[10px] text-blue-600 font-bold mt-2 animate-pulse uppercase tracking-wider">Above 2500 copies? Place Bulk Orders! 🚀</p>
+              </div>
               <button
                 onClick={handleReferClick}
                 className='w-full sm:w-auto px-10 py-5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl text-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 transform hover:-translate-y-1 cursor-pointer'

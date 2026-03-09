@@ -19,7 +19,8 @@ const ReferAndEarn = () => {
     };
 
     const shareOnWhatsApp = () => {
-        const message = `Hey! I'm using Print Express for all my printing needs. Use my referral code ${referralCode} and get ₹50 off on your first order! ${referralLink}`;
+        const baseUrl = 'https://print-express-ve.vercel.app/';
+        const message = `🚀 *Custom Print Rewards* 🚀\n\nI'm using Print Express for high-quality printing! 🖨️\n\nUse my referral code *${referralCode}* to get *10% DISCOUNT* on every order! 💰\n\n*How it works:*\n1️⃣ Click the link: ${baseUrl}\n2️⃣ Sign up and use code: *${referralCode}*\n3️⃣ Place your order and enjoy the discount!\n\n*Terms:*\n- 10% discount on every order after referral\n- Referral credits valid for 100 days\n\nJoin now: ${baseUrl}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     };
 
@@ -46,9 +47,9 @@ const ReferAndEarn = () => {
             {/* How It Works */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                    { icon: '📤', title: 'Share Your Link', desc: 'Share your unique referral link with friends and family' },
-                    { icon: '🛒', title: 'They Order', desc: 'Your friend places their first order using your link' },
-                    { icon: '💰', title: 'You Both Earn', desc: 'You get ₹100 and they get ₹50 off their first order!' }
+                    { icon: '📤', title: 'Share Your Link', desc: 'Share your referral code and link with friends and family' },
+                    { icon: '🛒', title: 'They Order', desc: 'Your friend places an order using your referral code' },
+                    { icon: '💰', title: 'You Both Earn', desc: 'Get 10% DISCOUNT on every order after referral!' }
                 ].map((step, index) => (
                     <div key={index} className="card-premium p-6 text-center space-y-3 hover-lift">
                         <div className="text-5xl mb-2">{step.icon}</div>
@@ -69,19 +70,22 @@ const ReferAndEarn = () => {
                     </div>
 
                     <div className="space-y-3">
-                        <label className="text-sm font-semibold text-text-muted">Your Referral Link</label>
+                        <label className="text-sm font-semibold text-text-muted">Direct Referral Link</label>
                         <div className="flex gap-2">
                             <input
                                 type="text"
-                                value={referralLink}
+                                value="https://print-express-ve.vercel.app/"
                                 readOnly
                                 className="input-field flex-1 font-mono text-sm"
                             />
                             <button
-                                onClick={copyToClipboard}
+                                onClick={() => {
+                                    navigator.clipboard.writeText('https://print-express-ve.vercel.app/');
+                                    toast.success('Link copied!');
+                                }}
                                 className="btn-primary px-6 whitespace-nowrap"
                             >
-                                {copied ? '✓ Copied!' : 'Copy'}
+                                Copy
                             </button>
                         </div>
                     </div>
@@ -96,12 +100,6 @@ const ReferAndEarn = () => {
                             </svg>
                             Share on WhatsApp
                         </button>
-                        <button
-                            onClick={copyToClipboard}
-                            className="flex-1 py-4 btn-outline flex items-center justify-center gap-2"
-                        >
-                            📋 Copy Link
-                        </button>
                     </div>
                 </div>
             </div>
@@ -110,15 +108,15 @@ const ReferAndEarn = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="card-premium p-6 text-center border-2 border-green-200 bg-green-50">
                     <p className="text-sm text-text-muted mb-2">Total Referrals</p>
-                    <p className="text-4xl font-bold font-outfit text-green-600">0</p>
+                    <p className="text-4xl font-bold font-outfit text-green-600">{user?.referralCredits?.length || 0}</p>
                 </div>
                 <div className="card-premium p-6 text-center border-2 border-blue-200 bg-blue-50">
-                    <p className="text-sm text-text-muted mb-2">Successful Orders</p>
-                    <p className="text-4xl font-bold font-outfit text-blue-600">0</p>
+                    <p className="text-sm text-text-muted mb-2">Valid Balance</p>
+                    <p className="text-4xl font-bold font-outfit text-blue-600">₹{user?.referralBalance || 0}</p>
                 </div>
                 <div className="card-premium p-6 text-center border-2 border-orange-200 bg-orange-50">
-                    <p className="text-sm text-text-muted mb-2">Total Earned</p>
-                    <p className="text-4xl font-bold font-outfit text-orange-600">₹0</p>
+                    <p className="text-sm text-text-muted mb-2">Validity</p>
+                    <p className="text-lg font-bold font-outfit text-orange-600">100 Days</p>
                 </div>
             </div>
 
@@ -126,10 +124,10 @@ const ReferAndEarn = () => {
             <div className="card-premium p-6 bg-gray-50">
                 <h3 className="font-bold mb-3">Terms & Conditions</h3>
                 <ul className="text-sm text-text-muted space-y-2">
-                    <li>• Referrer gets ₹100 credit when referred friend completes their first order</li>
-                    <li>• Referred friend gets ₹50 off on their first order</li>
-                    <li>• Minimum order value of ₹200 required for referral rewards</li>
-                    <li>• Credits are valid for 90 days from the date of issue</li>
+                    <li>• Enjoy a 10% DISCOUNT on every order using referral credits</li>
+                    <li>• Referrer gets ₹100 credit when friend completes their first order</li>
+                    <li>• Referral credits are valid for 100 days from the date of issue</li>
+                    <li>• Maximum discount of 10% applied per order automatically</li>
                     <li>• Print Express reserves the right to modify or cancel this program at any time</li>
                 </ul>
             </div>

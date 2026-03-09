@@ -660,6 +660,20 @@ const PrintPage = () => {
                             </div>
                         </div>
 
+                        {/* Bulk Order Remark for > 2500 copies */}
+                        {documentsOptions.reduce((sum, opt) => sum + (Number(opt.copies) || 0), 0) > 2500 && (
+                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-center animate-bounce">
+                                <a
+                                    href="https://wa.me/919894957422?text=Hello,%20I%20want%20to%20place%20a%20bulk%20order%20for%20more%20than%202500%20copies."
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs font-bold text-blue-700 flex items-center justify-center gap-2"
+                                >
+                                    📦 Above 2500 copies? Click for Bulk Rates! 🚀
+                                </a>
+                            </div>
+                        )}
+
                         {/* Place Order ONLY if step 4 */}
                         {step === 4 ? (
                             <button
@@ -977,6 +991,9 @@ const PrintPage = () => {
                                             +
                                         </button>
                                     </div>
+                                    {(options.copies > 2500) && (
+                                        <p className="text-[10px] text-blue-600 font-bold mt-1 animate-pulse uppercase">💡 2500+ copies? Try Bulk Order for best prices!</p>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-semibold text-text-muted">Paper Size</label>
