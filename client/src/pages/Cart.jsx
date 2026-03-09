@@ -9,7 +9,17 @@ const Cart = () => {
     const [addresses, setAddresses] = useState([])
     const [showAddress, setShowAddress] = useState(false)
     const [selectedAddress, setSelectedAddress] = useState(null)
-    const totalAmount = getCartAmount() + getCartAmount() * 2 / 100
+
+    const subtotal = getCartAmount();
+    const subtotalWithTax = subtotal + subtotal * 2 / 100;
+
+    // Referral Discount Calculation (10% max)
+    let referralDiscount = 0;
+    if (user && user.referralBalance > 0) {
+        referralDiscount = Math.min(user.referralBalance, subtotalWithTax * 0.1);
+    }
+
+    const totalAmount = Math.max(0, subtotalWithTax - referralDiscount);
 
     const placeOrder = async (isPaidViaRazorpay = false) => {
         try {
@@ -23,7 +33,8 @@ const Cart = () => {
                 items: cartArray.map(item => ({ product: item._id, quantity: item.quantity })),
                 address: selectedAddress._id,
                 paymentMethod: "RAZORPAY",
-                isPaid: false // Initially false
+                isPaid: false, // Initially false
+                referralDiscount // Passed to backend
             })
 
             if (data.success) {
@@ -211,9 +222,14 @@ const Cart = () => {
                     <p className="flex justify-between">
                         <span>Tax (2%)</span><span>{currency}{getCartAmount() * 2 / 100}</span>
                     </p>
+                    {referralDiscount > 0 && (
+                        <p className="flex justify-between text-indigo-600 font-semibold">
+                            <span>Referral Discount (10%)</span><span>-{currency}{referralDiscount.toFixed(2)}</span>
+                        </p>
+                    )}
                     <p className="flex justify-between text-lg font-medium mt-3">
                         <span>Total Amount:</span><span>
-                            {currency}{totalAmount}</span>
+                            {currency}{totalAmount.toFixed(2)}</span>
                     </p>
                 </div>
 

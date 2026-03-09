@@ -232,6 +232,17 @@ const Profile = () => {
                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 blur-3xl -mr-16 -mt-16 group-hover:bg-blue-600/30 transition-colors"></div>
                     </div>
 
+                    <div className="card-premium bg-indigo-950 text-white p-6 min-w-[280px] relative overflow-hidden group">
+                        <div className="relative z-10 flex justify-between items-start">
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">Referral Balance</p>
+                                <p className="text-4xl font-black font-outfit">₹{user?.referralBalance || 0}</p>
+                            </div>
+                            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl backdrop-blur-md border border-white/10">🎁</div>
+                        </div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/20 blur-3xl -mr-16 -mt-16 group-hover:bg-indigo-600/30 transition-colors"></div>
+                    </div>
+
                     <div className="card-premium p-6 space-y-4 border-blue-100 bg-blue-50/30">
                         <div className="flex items-center justify-between">
                             <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest flex items-center gap-2">

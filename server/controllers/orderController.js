@@ -267,7 +267,7 @@ export const placePrintOrder = async (req, res) => {
 // Place Product Order (from Cart) : /api/order/place
 export const placeOrder = async (req, res) => {
     try {
-        const { userId, items, address, paymentMethod, isPaid } = req.body;
+        const { userId, items, address, paymentMethod, isPaid, referralDiscount } = req.body;
 
         // In a real app, we'd calculate the amount here. 
         // For this migration, we'll trust the logic or implement a simple version.
@@ -280,11 +280,25 @@ export const placeOrder = async (req, res) => {
         );
         const displayId = `ANPRE${String(counter.seq).padStart(3, '0')}`;
 
+        // Deduct referral discount
+        let appliedReferralDiscount = 0;
+        if (referralDiscount && referralDiscount > 0) {
+            const user = await User.findById(userId);
+            if (user && user.referralBalance >= referralDiscount) {
+                appliedReferralDiscount = referralDiscount;
+                user.referralBalance -= appliedReferralDiscount;
+                await user.save();
+            }
+        }
+
         const order = await Order.create({
             userId,
             displayId,
             items, // Array of {product, quantity}
             deliveryDetails: { addressId: address },
+            pricing: {
+                referralDiscount: appliedReferralDiscount
+            },
             payment: {
                 method: 'RAZORPAY',
                 isPaid: false
