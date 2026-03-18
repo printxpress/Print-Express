@@ -6,6 +6,7 @@ import PrintExpressLogo from '../components/PrintExpressLogo';
 import PrintingAnimation from '../components/PrintingAnimation';
 import { detectDocument, formatFileSize, getDocumentIcon } from '../utils/documentDetection';
 import { assets } from '../assets/assets';
+import BulkOrderAlert from '../components/BulkOrderAlert';
 
 const PrintPage = () => {
     const { axios, user, services, shopSettings, pricingRules } = useAppContext();
@@ -107,6 +108,9 @@ const PrintPage = () => {
     const [couponLoading, setCouponLoading] = useState(false);
     const [walletBalance, setWalletBalance] = useState(0);
     const [useWallet, setUseWallet] = useState(false);
+    const [isBulkOrder, setIsBulkOrder] = useState(false);
+    const [deliveryMethod, setDeliveryMethod] = useState('standard'); // 'standard' or 'parcel'
+    const [showBulkAlert, setShowBulkAlert] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [processingFiles, setProcessingFiles] = useState(false);
@@ -248,9 +252,14 @@ const PrintPage = () => {
         const hasValidPincode = delivery.pincode && delivery.pincode.length === 6;
         let deliveryCharge = 0;
         if (fulfillment === 'delivery' && hasValidPincode) {
-            if (calcWeight <= 3) deliveryCharge = 35 * calcWeight;
-            else if (calcWeight <= 10) deliveryCharge = (29 * calcWeight) + 20;
-            else deliveryCharge = (26 * calcWeight) + 20;
+            // Bulk Order Free Shipping logic for Parcel Service
+            if (isBulkOrder && totalSheets >= 2500 && deliveryMethod === 'parcel') {
+                deliveryCharge = 0;
+            } else {
+                if (calcWeight <= 3) deliveryCharge = 35 * calcWeight;
+                else if (calcWeight <= 10) deliveryCharge = (29 * calcWeight) + 20;
+                else deliveryCharge = (26 * calcWeight) + 20;
+            }
         }
 
         const subtotal = totalPrintCharge + totalBindCharge + deliveryCharge;
@@ -586,6 +595,22 @@ const PrintPage = () => {
                                 <div className="text-right">
                                     <span className="font-bold text-blue-800">{allDocTotalSheets} sheets</span>
                                 </div>
+                            </div>
+
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100/50">
+                                <div className="flex flex-col">
+                                    <span className="text-text-muted text-sm">Bulk Order</span>
+                                    <span className="text-[10px] text-blue-600 font-bold uppercase">Free Parcel Shipping &gt;2500 Sheets</span>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        if (!isBulkOrder) setShowBulkAlert(true);
+                                        setIsBulkOrder(!isBulkOrder);
+                                    }}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isBulkOrder ? 'bg-blue-600' : 'bg-slate-200'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBulkOrder ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
                             </div>
 
 
@@ -1171,6 +1196,38 @@ const PrintPage = () => {
                                 </button>
                             </div>
 
+                            {fulfillment === 'delivery' && (
+                                <div className="space-y-3 p-4 bg-blue-50/50 rounded-2xl border border-blue-100 mt-4">
+                                    <p className="text-xs font-bold text-blue-800 uppercase tracking-widest">Select Delivery Type</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setDeliveryMethod('standard')}
+                                            className={`p-3 rounded-xl border-2 transition-all text-xs font-bold ${deliveryMethod === 'standard' ? 'bg-white border-blue-600 text-blue-800 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-500'}`}
+                                        >
+                                            Standard Courier
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setDeliveryMethod('parcel');
+                                                if (isBulkOrder && allDocTotalSheets < 2500) {
+                                                    toast("Bulk order free shipping requires > 2500 sheets", { icon: '📦' });
+                                                }
+                                            }}
+                                            className={`p-3 rounded-xl border-2 transition-all text-xs font-bold ${deliveryMethod === 'parcel' ? 'bg-white border-blue-600 text-blue-800 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-500'}`}
+                                        >
+                                            Parcel Service (MSS, A1, Rathimeena)
+                                        </button>
+                                    </div>
+                                    {isBulkOrder && allDocTotalSheets >= 2500 && deliveryMethod === 'parcel' && (
+                                        <p className="text-[10px] text-green-600 font-bold flex items-center gap-1 animate-pulse">
+                                            ✨ Bulk Order Benefit: Free shipping applied!
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Address Management UI */}
                             {fulfillment === 'delivery' && (
                                 <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -1427,6 +1484,7 @@ const PrintPage = () => {
                     )}
                 </div>
             </div>
+        <BulkOrderAlert isOpen={showBulkAlert} onClose={() => setShowBulkAlert(false)} />
         </div>
     );
 };

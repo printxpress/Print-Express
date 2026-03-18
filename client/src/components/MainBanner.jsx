@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { assets } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
+import BulkOrderAlert from './BulkOrderAlert'
 
 const MainBanner = () => {
   const { user, setShowUserLogin, pricingRules, navigate } = useAppContext();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [showBulkAlert, setShowBulkAlert] = useState(false);
 
   const handleReferClick = () => {
     navigate('/refer');
@@ -136,14 +138,12 @@ const MainBanner = () => {
                 🚀 Start Printing
               </Link>
               <div className="flex flex-col items-center">
-                <a
-                  href="https://wa.me/919894957422?text=Hello,%20I%20would%20like%20to%20place%20a%20bulk%20order."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className='w-full sm:w-auto px-10 py-5 bg-white border-2 border-slate-100 hover:border-blue-200 text-slate-700 rounded-2xl text-xl font-bold transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1'
+                <button
+                  onClick={() => setShowBulkAlert(true)}
+                  className='w-full sm:w-auto px-10 py-5 bg-white border-2 border-slate-100 hover:border-blue-200 text-slate-700 rounded-2xl text-xl font-bold transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1 cursor-pointer'
                 >
                   📦 Bulk Order
-                </a>
+                </button>
                 <p className="text-[10px] text-blue-600 font-bold mt-2 animate-pulse uppercase tracking-wider">Above 2500 copies? Place Bulk Orders! 🚀</p>
               </div>
               <button
@@ -164,6 +164,7 @@ const MainBanner = () => {
           </div>
         </div>
       </div>
+      <BulkOrderAlert isOpen={showBulkAlert} onClose={() => setShowBulkAlert(false)} />
     </div>
   )
 }

@@ -142,7 +142,7 @@ const Login = () => {
                         {loginType === 'customer' ? '📱' : '🔐'}
                     </div>
                     <h2 className="text-2xl font-black font-outfit text-slate-900 tracking-tight">
-                        {loginType === 'customer' ? 'Welcome to Print Express' : 'Staff Terminal'}
+                        {loginType === 'customer' ? 'Welcome to Print Express' : 'Staff Access'}
                     </h2>
                     {step === 'otp' ? (
                         <div className="mt-2 flex items-center justify-center gap-2 bg-blue-50 py-2 px-4 rounded-full w-fit mx-auto border border-blue-100">
@@ -171,7 +171,7 @@ const Login = () => {
                             onClick={() => setLoginType('staff')}
                             className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${loginType === 'staff' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                            Staff Access
+                            Login
                         </button>
                     </div>
 
@@ -254,27 +254,27 @@ const Login = () => {
                     ) : (
                         <form onSubmit={handleStaffLogin} className="space-y-4">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Role/Username</label>
-                                <input
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    value={email}
-                                    placeholder="Enter your email/role"
-                                    className="input-field py-3 text-sm"
-                                    type="text"
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Secure Password</label>
-                                <input
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    value={password}
-                                    placeholder="••••••••"
-                                    className="input-field py-3 text-sm"
-                                    type="password"
-                                    required
-                                />
-                            </div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Username</label>
+                            <input
+                                onChange={(e) => setEmail(e.target.value)}
+                                value={email}
+                                placeholder="Enter your email/role"
+                                className="input-field py-3 text-sm"
+                                type="text"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                            <input
+                                onChange={(e) => setPassword(e.target.value)}
+                                value={password}
+                                placeholder="••••••••"
+                                className="input-field py-3 text-sm"
+                                type="password"
+                                required
+                            />
+                        </div>
                             <button
                                 disabled={loading}
                                 className="bg-slate-900 text-white w-full py-4 rounded-xl font-bold hover:bg-black transition-all shadow-xl active:scale-[0.98]"
