@@ -7,6 +7,26 @@ import jwt from 'jsonwebtoken';
 // Mock OTP storage (In production, use Redis or a DB collection with TTL)
 const otpStore = new Map();
 
+// Helper function to generate referral code
+const generateReferralCode = (name, phone) => {
+    const prefix = 'PRX';
+    let namePart = 'XX';
+
+    if (name) {
+        const cleanName = name.replace(/[^a-zA-Z]/g, '');
+        if (cleanName.length >= 3) {
+            namePart = (cleanName[0] + cleanName[2]).toUpperCase();
+        } else if (cleanName.length >= 1) {
+            namePart = (cleanName[0] + (cleanName[1] || cleanName[0])).toUpperCase();
+        }
+    }
+
+    const midPhone = phone.slice(4, 6);
+    const lastPhone = phone.slice(8, 10);
+
+    return `${prefix}${namePart}${midPhone}${lastPhone}`;
+}
+
 // Send OTP : /api/user/send-otp
 export const sendOtp = async (req, res) => {
     try {
@@ -62,7 +82,7 @@ export const verifyOtp = async (req, res) => {
         if (!user) {
             isNewUser = true;
             // New user registration
-            const referralCode = `PRINT${phone.slice(-4)}`;
+            const referralCode = generateReferralCode(name || 'Customer', phone);
             let referredBy = null;
 
             if (req.body.referralCode) {
@@ -95,7 +115,7 @@ export const verifyOtp = async (req, res) => {
 
         const isProfileComplete = !!(user.name && user.email);
 
-        return res.json({ success: true, user: { phone: user.phone, name: user.name, role: user.role }, isProfileComplete });
+        return res.json({ success: true, user, isProfileComplete });
     } catch (error) {
         console.log(error.message);
         res.json({ success: false, message: error.message });
@@ -106,8 +126,16 @@ export const verifyOtp = async (req, res) => {
 export const isAuth = async (req, res) => {
     try {
         const userId = req.userId;
-        const user = await User.findById(userId);
+        let user = await User.findById(userId);
         if (!user) return res.json({ success: false, message: 'User not found' });
+
+        // Migrate legacy referral codes to new format
+        if (!user.referralCode || user.referralCode.startsWith('PRINT')) {
+            const newCode = generateReferralCode(user.name, user.phone);
+            user.referralCode = newCode;
+            await user.save();
+        }
+
         return res.json({ success: true, user });
     } catch (error) {
         console.log(error.message);

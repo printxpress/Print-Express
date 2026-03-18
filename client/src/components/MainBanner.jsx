@@ -4,17 +4,11 @@ import { assets } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
 
 const MainBanner = () => {
-  const { user, setShowUserLogin, pricingRules } = useAppContext();
+  const { user, setShowUserLogin, pricingRules, navigate } = useAppContext();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const handleReferClick = () => {
-    if (user && user.referralCode) {
-      const message = `Sign up on Print Express using my referral code ${user.referralCode} and get ₹50 free wallet balance! Order prints online easily.`;
-      const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      setShowUserLogin(true);
-    }
+    navigate('/refer');
   };
 
   const sliderImages = [

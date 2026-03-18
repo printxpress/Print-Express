@@ -22,6 +22,15 @@ const Login = () => {
 
     const [loading, setLoading] = useState(false);
 
+    // Auto-capture referral code from URL
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ref = urlParams.get('ref');
+        if (ref) {
+            setReferralCode(ref.toUpperCase());
+        }
+    }, [setShowUserLogin]);
+
     // Audio Ref for notification sound
     const audioRef = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'));
 
