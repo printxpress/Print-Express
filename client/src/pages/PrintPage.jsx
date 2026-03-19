@@ -441,8 +441,8 @@ const PrintPage = () => {
             if (data.success) {
                 const orderId = data.orderId;
 
-                // If payment method is UPI (now Razorpay) and amount > 0, initiate Razorpay
-                if (paymentMethod === 'UPI' && pricing.total > 0) {
+                // Razorpay Initiation for UPI or Split Pay (UPI+Wallet)
+                if ((paymentMethod === 'UPI' || paymentMethod === 'UPI+Wallet') && pricing.total > 0) {
                     const { data: razorpayData } = await axios.post('/api/order/razorpay-order', {
                         amount: pricing.total
                     });
@@ -1434,30 +1434,40 @@ const PrintPage = () => {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 {[
                                     { id: 'UPI', icon: '💳', label: 'Online Payment', desc: 'Standard Razorpay' },
-                                    { id: 'Wallet', icon: '🪙', label: 'Wallet', desc: `Balance: ₹${walletBalance}` },
-                                    { id: 'UPI+Wallet', icon: '🌗', label: 'Split Pay', desc: 'Wallet + Razorpay' },
+                                    { id: 'Wallet', icon: '🪙', label: 'Wallet', desc: walletBalance > 0 ? `Balance: ₹${walletBalance}` : 'Wallet is empty' },
+                                    { id: 'UPI+Wallet', icon: '🌗', label: 'Split Pay', desc: walletBalance > 0 ? 'Wallet + Razorpay' : 'Wallet is empty' },
                                     { id: 'Referral', icon: '🎁', label: 'Referral amount balance', desc: `Balance: ₹${user?.referralBalance || 0}` },
-                                ].map(pm => (
-                                    <button
-                                        type="button"
-                                        key={pm.id}
-                                        onClick={() => {
-                                            if (pm.id === 'Referral') return;
-                                            setPaymentMethod(pm.id);
-                                            if (pm.id === 'Wallet' || pm.id === 'UPI+Wallet') setUseWallet(true);
-                                            else setUseWallet(false);
-                                        }}
-                                        disabled={(pm.id === 'Wallet' && walletBalance <= 0) || pm.id === 'Referral'}
-                                        className={`p-4 rounded-xl border-2 transition-all text-left space-y-1 ${paymentMethod === pm.id
-                                            ? 'border-blue-600 bg-blue-50 shadow-md'
-                                            : 'border-border hover:border-blue-300'
-                                            } ${(pm.id === 'Wallet' && walletBalance <= 0) ? 'opacity-40 cursor-not-allowed' : ''} ${pm.id === 'Referral' ? 'bg-indigo-50 border-indigo-200 cursor-default hover:border-indigo-200 opacity-90' : ''}`}
-                                    >
-                                        <span className="text-2xl">{pm.icon}</span>
-                                        <p className="font-bold text-sm">{pm.label}</p>
-                                        <p className="text-[10px] text-text-muted">{pm.desc}</p>
-                                    </button>
-                                ))}
+                                ].map(pm => {
+                                    const isWalletEmpty = (pm.id === 'Wallet' || pm.id === 'UPI+Wallet') && walletBalance <= 0;
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={pm.id}
+                                            onClick={() => {
+                                                if (pm.id === 'Referral') return;
+                                                if (isWalletEmpty) {
+                                                    toast.error("Your wallet is empty. Add funds in your profile.");
+                                                    return;
+                                                }
+                                                setPaymentMethod(pm.id);
+                                                if (pm.id === 'Wallet' || pm.id === 'UPI+Wallet') setUseWallet(true);
+                                                else setUseWallet(false);
+                                            }}
+                                            disabled={pm.id === 'Referral' || (isWalletEmpty && paymentMethod === pm.id)}
+                                            className={`p-4 rounded-xl border-2 transition-all text-left space-y-1 ${paymentMethod === pm.id
+                                                ? 'border-blue-600 bg-blue-50 shadow-md'
+                                                : 'border-border hover:border-blue-300'
+                                                } ${isWalletEmpty ? 'opacity-40 grayscale cursor-not-allowed' : ''} ${pm.id === 'Referral' ? 'bg-indigo-50 border-indigo-200 cursor-default hover:border-indigo-200 opacity-90' : ''}`}
+                                        >
+                                            <span className="text-2xl">{pm.icon}</span>
+                                            <p className="font-bold text-sm">{pm.label}</p>
+                                            <p className="text-[10px] text-text-muted">{pm.desc}</p>
+                                            {isWalletEmpty && (
+                                                <p onClick={(e) => { e.stopPropagation(); navigate('/profile'); }} className="text-[8px] text-blue-600 font-bold underline cursor-pointer mt-1 hover:text-blue-800">Add Funds →</p>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
 
                             {/* Wallet Balance Info */}

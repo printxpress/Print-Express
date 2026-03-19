@@ -12,6 +12,9 @@ const Cart = () => {
     const [isBulkOrder, setIsBulkOrder] = useState(false)
     const [deliveryMethod, setDeliveryMethod] = useState('standard') // 'standard' or 'parcel'
     const [courierPartner, setCourierPartner] = useState('ST/DTDC Courier')
+    const [paymentMethod, setPaymentMethod] = useState('UPI');
+    const [useWallet, setUseWallet] = useState(false);
+    const [walletBalance, setWalletBalance] = useState(0);
 
     const subtotal = getCartAmount();
     const subtotalWithTax = subtotal + subtotal * 2 / 100;
@@ -23,6 +26,8 @@ const Cart = () => {
     }
 
     const totalAmount = Math.max(0, subtotalWithTax - referralDiscount);
+    const walletUsed = useWallet ? Math.min(walletBalance, totalAmount) : 0;
+    const finalTotalAmount = totalAmount - walletUsed;
 
     const placeOrder = async (isPaidViaRazorpay = false) => {
         try {
@@ -35,71 +40,79 @@ const Cart = () => {
                 userId: user._id,
                 items: cartArray.map(item => ({ product: item._id, quantity: item.quantity })),
                 address: selectedAddress._id,
-                paymentMethod: "RAZORPAY",
+                paymentMethod: paymentMethod === 'UPI' ? 'RAZORPAY' : paymentMethod,
                 isPaid: false, // Initially false
                 referralDiscount, // Passed to backend
+                walletUsed,
                 courierPartner
             })
 
             if (data.success) {
                 const orderId = data.orderId;
 
-                // Initiate Razorpay
-                const { data: razorpayData } = await axios.post('/api/order/razorpay-order', {
-                    amount: totalAmount
-                });
+                // Initiate Razorpay if needed
+                if ((paymentMethod === 'UPI' || paymentMethod === 'UPI+Wallet') && finalTotalAmount > 0) {
+                    const { data: razorpayData } = await axios.post('/api/order/razorpay-order', {
+                        amount: finalTotalAmount
+                    });
 
-                if (razorpayData.success) {
-                    if (!window.Razorpay) {
-                        console.error("Razorpay script (window.Razorpay) is missing!");
-                        return toast.error("Razorpay script not loaded. Please refresh.")
-                    }
-
-                    console.log("Initializing Razorpay with Key:", import.meta.env.VITE_RAZORPAY_KEY_ID);
-                    const options = {
-                        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-                        amount: razorpayData.razorpayOrder.amount,
-                        currency: razorpayData.razorpayOrder.currency,
-                        name: "Print Express",
-                        description: "Product Purchase",
-                        order_id: razorpayData.razorpayOrder.id,
-                        handler: async (response) => {
-                            try {
-                                const { data: verifyData } = await axios.post('/api/order/razorpay-verify', {
-                                    ...response,
-                                    orderId
-                                });
-
-                                if (verifyData.success) {
-                                    toast.success("Payment successful! Order placed. 🎉")
-                                    setCartItems({})
-                                    navigate('/my-orders')
-                                } else {
-                                    toast.error(verifyData.message || "Payment verification failed")
-                                }
-                            } catch (error) {
-                                toast.error("Payment verification error")
-                            }
-                        },
-                        prefill: {
-                            name: user.name,
-                            email: user.email,
-                            contact: selectedAddress.phone || user.phone
-                        },
-                        theme: {
-                            color: "#2563eb"
-                        },
-                        modal: {
-                            ondismiss: function () {
-                                // Optional: logic when modal is closed
-                            }
+                    if (razorpayData.success) {
+                        if (!window.Razorpay) {
+                            console.error("Razorpay script (window.Razorpay) is missing!");
+                            return toast.error("Razorpay script not loaded. Please refresh.")
                         }
-                    };
 
-                    const rzp = new window.Razorpay(options);
-                    rzp.open();
+                        console.log("Initializing Razorpay with Key:", import.meta.env.VITE_RAZORPAY_KEY_ID);
+                        const options = {
+                            key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+                            amount: razorpayData.razorpayOrder.amount,
+                            currency: razorpayData.razorpayOrder.currency,
+                            name: "Print Express",
+                            description: "Product Purchase",
+                            order_id: razorpayData.razorpayOrder.id,
+                            handler: async (response) => {
+                                try {
+                                    const { data: verifyData } = await axios.post('/api/order/razorpay-verify', {
+                                        ...response,
+                                        orderId
+                                    });
+
+                                    if (verifyData.success) {
+                                        toast.success("Payment successful! Order placed. 🎉")
+                                        setCartItems({})
+                                        navigate('/my-orders')
+                                    } else {
+                                        toast.error(verifyData.message || "Payment verification failed")
+                                    }
+                                } catch (error) {
+                                    toast.error("Payment verification error")
+                                }
+                            },
+                            prefill: {
+                                name: user.name,
+                                email: user.email,
+                                contact: selectedAddress.phone || user.phone
+                            },
+                            theme: {
+                                color: "#2563eb"
+                            },
+                            modal: {
+                                ondismiss: function () {
+                                    // Optional: logic when modal is closed
+                                }
+                            }
+                        };
+
+                        const rzp = new window.Razorpay(options);
+                        rzp.open();
+                    } else {
+                        toast.error("Could not initiate payment")
+                    }
                 } else {
-                    toast.error("Could not initiate payment")
+                    // Paid via Wallet or amount is 0
+                    toast.success("Order placed successfully! 🎉")
+                    setCartItems({})
+                    navigate('/my-orders')
                 }
             } else {
                 toast.error(data.message)
@@ -149,8 +162,15 @@ const Cart = () => {
     useEffect(() => {
         if (user) {
             getUserAddress()
+            const fetchWallet = async () => {
+                try {
+                    const { data } = await axios.get('/api/user/wallet-balance');
+                    if (data.success) setWalletBalance(data.balance);
+                } catch (e) { console.error("Error fetching wallet", e); }
+            };
+            fetchWallet();
         }
-    }, [user])
+    }, [user, axios])
 
     return products.length > 0 && cartItems ? (
         <div className="flex flex-col md:flex-row mt-16">
@@ -230,9 +250,49 @@ const Cart = () => {
 
                     <p className="text-sm font-medium uppercase mt-6">Payment Method</p>
 
-                    <div className="w-full border border-gray-300 bg-white px-3 py-2 mt-2 outline-none flex items-center gap-2 font-medium">
-                        <span>💳</span> Online Payment (Razorpay)
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                        {[
+                            { id: 'UPI', icon: '💳', label: 'Online', desc: 'Razorpay' },
+                            { id: 'Wallet', icon: '🪙', label: 'Wallet', desc: walletBalance > 0 ? `₹${walletBalance}` : 'Empty' },
+                            { id: 'UPI+Wallet', icon: '🌗', label: 'Split Pay', desc: 'Wallet+UPI' },
+                        ].map(pm => {
+                            const isWalletEmpty = (pm.id === 'Wallet' || pm.id === 'UPI+Wallet') && walletBalance <= 0;
+                            return (
+                                <button
+                                    key={pm.id}
+                                    onClick={() => {
+                                        if (isWalletEmpty) {
+                                            toast.error("Your wallet is empty.");
+                                            return;
+                                        }
+                                        setPaymentMethod(pm.id);
+                                        setUseWallet(pm.id === 'Wallet' || pm.id === 'UPI+Wallet');
+                                    }}
+                                    className={`p-2 rounded-lg border-2 transition-all text-left ${paymentMethod === pm.id
+                                        ? 'border-primary bg-primary/5'
+                                        : 'border-gray-200'
+                                        } ${isWalletEmpty ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-sm">{pm.icon}</span>
+                                        <p className="font-bold text-[10px]">{pm.label}</p>
+                                    </div>
+                                    <p className="text-[8px] text-gray-400">{pm.desc}</p>
+                                </button>
+                            );
+                        })}
                     </div>
+
+                    {useWallet && walletBalance > 0 && (
+                        <div className="bg-amber-50 p-2 rounded-lg border border-amber-200 flex items-center justify-between mt-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm">🪙</span>
+                                <p className="text-[10px] font-bold text-amber-800">Wallet Used</p>
+                            </div>
+                            <p className="text-xs font-bold text-green-600">-₹{walletUsed.toFixed(2)}</p>
+                        </div>
+                    )}
+
                     {user?.referralBalance > 0 && (
                         <div className="w-full border border-gray-300 bg-indigo-50 text-indigo-800 px-3 py-2 mt-2 outline-none flex items-center justify-between font-medium">
                             <div className="flex items-center gap-2">
@@ -292,8 +352,8 @@ const Cart = () => {
                         </p>
                     )}
                     <p className="flex justify-between text-lg font-medium mt-3">
-                        <span>Total Amount:</span><span>
-                            {currency}{totalAmount.toFixed(2)}</span>
+                        <span>Total Payable:</span><span>
+                            {currency}{finalTotalAmount.toFixed(2)}</span>
                     </p>
                 </div>
 

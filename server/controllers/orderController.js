@@ -304,7 +304,7 @@ export const placePrintOrder = async (req, res) => {
 // Place Product Order (from Cart) : /api/order/place
 export const placeOrder = async (req, res) => {
     try {
-        const { userId, items, address, paymentMethod, isPaid, referralDiscount, courierPartner } = req.body;
+        const { userId, items, address, paymentMethod, isPaid, referralDiscount, courierPartner, walletUsed } = req.body;
 
         // In a real app, we'd calculate the amount here. 
         // For this migration, we'll trust the logic or implement a simple version.
@@ -328,17 +328,35 @@ export const placeOrder = async (req, res) => {
             }
         }
 
+        // 5. Handle Wallet Deduction
+        if (walletUsed > 0) {
+            const wallet = await Wallet.findOne({ userId });
+            if (!wallet || wallet.balance < walletUsed) {
+                return res.json({ success: false, message: "Insufficient wallet balance" });
+            }
+            wallet.balance -= walletUsed;
+            wallet.transactions.push({
+                type: 'debit',
+                amount: walletUsed,
+                description: `Used for cart order`,
+                addedBy: 'user'
+            });
+            await wallet.save();
+            await User.findByIdAndUpdate(userId, { walletBalance: wallet.balance });
+        }
+
         const order = await Order.create({
             userId,
             displayId,
             items, // Array of {product, quantity}
             deliveryDetails: { addressId: address, courierPartner },
-            pricing: {
-                referralDiscount: appliedReferralDiscount
-            },
             payment: {
-                method: 'RAZORPAY',
-                isPaid: false
+                method: paymentMethod || 'RAZORPAY',
+                isPaid: isPaid || false
+            },
+            pricing: {
+                referralDiscount: appliedReferralDiscount,
+                walletUsed: walletUsed || 0
             },
             status: 'received',
             fulfillment: { method: 'delivery' }
