@@ -42,7 +42,9 @@ const orderSchema = new mongoose.Schema({
         district: String,
         state: String,
         landmark: String,
-        phone: String
+        phone: String,
+        courierPartner: String,
+        addressId: { type: mongoose.Schema.Types.ObjectId, ref: 'address' }
     },
     status: {
         type: String,

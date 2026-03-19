@@ -304,7 +304,7 @@ export const placePrintOrder = async (req, res) => {
 // Place Product Order (from Cart) : /api/order/place
 export const placeOrder = async (req, res) => {
     try {
-        const { userId, items, address, paymentMethod, isPaid, referralDiscount } = req.body;
+        const { userId, items, address, paymentMethod, isPaid, referralDiscount, courierPartner } = req.body;
 
         // In a real app, we'd calculate the amount here. 
         // For this migration, we'll trust the logic or implement a simple version.
@@ -332,7 +332,7 @@ export const placeOrder = async (req, res) => {
             userId,
             displayId,
             items, // Array of {product, quantity}
-            deliveryDetails: { addressId: address },
+            deliveryDetails: { addressId: address, courierPartner },
             pricing: {
                 referralDiscount: appliedReferralDiscount
             },

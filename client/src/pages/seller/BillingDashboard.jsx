@@ -203,7 +203,14 @@ const BillingDashboard = () => {
                                     <div className="flex-1 bg-white p-4 rounded-xl border border-slate-200 shadow-inner space-y-3">
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="space-y-1">
-                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Courier</label>
+                                                <div className="flex items-center gap-2">
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Courier</label>
+                                                    {order.deliveryDetails?.courierPartner && (
+                                                        <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-black border border-purple-200">
+                                                            User Choice: {order.deliveryDetails.courierPartner}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <input
                                                     type="text"
                                                     placeholder={order.trackingDetails?.courierName || "e.g. DTDC"}

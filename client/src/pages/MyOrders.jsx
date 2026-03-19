@@ -169,6 +169,14 @@ const MyOrders = () => {
                                             </div>
                                         ))}
                                     </div>
+                                    {order.deliveryDetails?.courierPartner && (
+                                        <div className="pt-4 border-t border-slate-100">
+                                            <p className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Courier Partner</p>
+                                            <p className="text-xs font-bold text-blue-700 mt-1 flex items-center gap-2">
+                                                <span>🚚</span> {order.deliveryDetails.courierPartner}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

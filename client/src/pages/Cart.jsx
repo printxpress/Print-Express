@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useAppContext } from "../context/AppContext";
 import { assets } from "../assets/assets";
 import toast from "react-hot-toast";
-import BulkOrderAlert from "../components/BulkOrderAlert";
 
 const Cart = () => {
     const { products, currency, cartItems, removeFromCart, getCartCount, updateCartItem, navigate, getCartAmount, axios, user, setCartItems } = useAppContext()
@@ -12,7 +11,7 @@ const Cart = () => {
     const [selectedAddress, setSelectedAddress] = useState(null)
     const [isBulkOrder, setIsBulkOrder] = useState(false)
     const [deliveryMethod, setDeliveryMethod] = useState('standard') // 'standard' or 'parcel'
-    const [showBulkAlert, setShowBulkAlert] = useState(false)
+    const [courierPartner, setCourierPartner] = useState('ST/DTDC Courier')
 
     const subtotal = getCartAmount();
     const subtotalWithTax = subtotal + subtotal * 2 / 100;
@@ -38,7 +37,8 @@ const Cart = () => {
                 address: selectedAddress._id,
                 paymentMethod: "RAZORPAY",
                 isPaid: false, // Initially false
-                referralDiscount // Passed to backend
+                referralDiscount, // Passed to backend
+                courierPartner
             })
 
             if (data.success) {
@@ -206,22 +206,6 @@ const Cart = () => {
                 <h2 className="text-xl md:text-xl font-medium">Order Summary</h2>
                 <hr className="border-gray-300 my-5" />
 
-                {/* Bulk Order Toggle */}
-                <div className="flex justify-between items-center py-3 px-2 bg-blue-50/50 rounded-xl border border-blue-100 mb-5">
-                    <div className="flex flex-col">
-                        <span className="text-sm font-bold text-slate-700">Bulk Order</span>
-                        <span className="text-[10px] text-blue-600 font-bold uppercase">Free Parcel Shipping &gt;2500 Sheets</span>
-                    </div>
-                    <button
-                        onClick={() => {
-                            if (!isBulkOrder) setShowBulkAlert(true);
-                            setIsBulkOrder(!isBulkOrder);
-                        }}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isBulkOrder ? 'bg-blue-600' : 'bg-slate-300'}`}
-                    >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBulkOrder ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                </div>
 
                 <div className="mb-6">
                     <p className="text-sm font-medium uppercase">Delivery Address</p>
@@ -263,17 +247,27 @@ const Cart = () => {
                     <p className="text-sm font-medium uppercase mt-6">Delivery Type</p>
                     <div className="grid grid-cols-1 gap-2 mt-2">
                         <button
-                            onClick={() => setDeliveryMethod('standard')}
-                            className={`w-full py-2 px-3 border-2 rounded-lg text-xs font-bold transition-all text-left flex justify-between items-center ${deliveryMethod === 'standard' ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 text-gray-500'}`}
+                            onClick={() => setCourierPartner('ST/DTDC Courier')}
+                            className={`w-full py-2 px-3 border-2 rounded-lg text-xs font-bold transition-all text-left flex flex-col ${courierPartner === 'ST/DTDC Courier' ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 text-gray-500'}`}
                         >
-                            Standard Courier <span>{deliveryMethod === 'standard' ? '✓' : ''}</span>
+                            <div className="flex justify-between items-center w-full">
+                                <span>In Courier Service (ST Courier, DTDC)</span>
+                                <span>{courierPartner === 'ST/DTDC Courier' ? '✓' : ''}</span>
+                            </div>
+                            <span className="text-[9px] font-normal opacity-70">(Home Delivery Available)</span>
                         </button>
-                        <button
-                            onClick={() => setDeliveryMethod('parcel')}
-                            className={`w-full py-2 px-3 border-2 rounded-lg text-xs font-bold transition-all text-left flex justify-between items-center ${deliveryMethod === 'parcel' ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 text-gray-500'}`}
-                        >
-                            Parcel Service (MSS, A1, Rathimeena) <span>{deliveryMethod === 'parcel' ? '✓' : ''}</span>
-                        </button>
+                        {isBulkOrder && (
+                            <button
+                                onClick={() => setCourierPartner('Parcel Service (A1, Rathimeena, MSS)')}
+                                className={`w-full py-2 px-3 border-2 rounded-lg text-xs font-bold transition-all text-left flex flex-col ${courierPartner === 'Parcel Service (A1, Rathimeena, MSS)' ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 text-gray-500'}`}
+                            >
+                                <div className="flex justify-between items-center w-full">
+                                    <span>Parcel Service (A1, Rathimeena, MSS)</span>
+                                    <span>{courierPartner === 'Parcel Service (A1, Rathimeena, MSS)' ? '✓' : ''}</span>
+                                </div>
+                                <span className="text-[9px] font-normal opacity-70">(Home Delivery Not Available - Need to collect in Hub)</span>
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -285,8 +279,8 @@ const Cart = () => {
                     </p>
                     <p className="flex justify-between">
                         <span>Shipping Fee</span>
-                        <span className={(isBulkOrder && deliveryMethod === 'parcel') ? "text-green-600 font-bold" : "text-gray-500"}>
-                            {(isBulkOrder && deliveryMethod === 'parcel') ? "Free" : "₹0.00"}
+                        <span className={(isBulkOrder && courierPartner.includes('Parcel')) ? "text-green-600 font-bold" : "text-gray-500"}>
+                            {(isBulkOrder && courierPartner.includes('Parcel')) ? "Free" : "₹0.00"}
                         </span>
                     </p>
                     <p className="flex justify-between">
@@ -306,7 +300,6 @@ const Cart = () => {
                 <button onClick={() => placeOrder()} className="w-full py-3 mt-6 cursor-pointer bg-primary text-white font-medium hover:bg-primary-dull transition">
                     Proceed to Payment 🚀
                 </button>
-                <BulkOrderAlert isOpen={showBulkAlert} onClose={() => setShowBulkAlert(false)} />
             </div>
         </div>
     ) : null

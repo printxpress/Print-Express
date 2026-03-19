@@ -6,7 +6,6 @@ import PrintExpressLogo from '../components/PrintExpressLogo';
 import PrintingAnimation from '../components/PrintingAnimation';
 import { detectDocument, formatFileSize, getDocumentIcon } from '../utils/documentDetection';
 import { assets } from '../assets/assets';
-import BulkOrderAlert from '../components/BulkOrderAlert';
 
 const PrintPage = () => {
     const { axios, user, services, shopSettings, pricingRules } = useAppContext();
@@ -14,6 +13,24 @@ const PrintPage = () => {
     const navigate = useNavigate();
     const [files, setFiles] = useState([]);
     const [fileMetadata, setFileMetadata] = useState([]);
+
+    const calculateCustomPageCount = (range) => {
+        if (!range) return 0;
+        const parts = range.split(',').map(p => p.trim());
+        let count = 0;
+        parts.forEach(part => {
+            if (part.includes('-')) {
+                const [start, end] = part.split('-').map(Number);
+                if (!isNaN(start) && !isNaN(end) && end >= start) {
+                    count += (end - start + 1);
+                }
+            } else {
+                const num = Number(part);
+                if (!isNaN(num) && num > 0) count += 1;
+            }
+        });
+        return count;
+    };
 
     const getDefaultOptions = () => ({
         mode: 'B/W',
@@ -93,11 +110,12 @@ const PrintPage = () => {
         sideDiscount: 0,
         print: 0,
         binding: 0,
-        delivery: 40,
+        delivery: 0,
         couponDiscount: 0,
         referralDiscount: 0,
         walletUsed: 0,
-        total: 0
+        total: 0,
+        weight: 0
     });
 
     // New state for features
@@ -110,7 +128,34 @@ const PrintPage = () => {
     const [useWallet, setUseWallet] = useState(false);
     const [isBulkOrder, setIsBulkOrder] = useState(false);
     const [deliveryMethod, setDeliveryMethod] = useState('standard'); // 'standard' or 'parcel'
-    const [showBulkAlert, setShowBulkAlert] = useState(false);
+    const [courierPartner, setCourierPartner] = useState('ST/DTDC Courier');
+
+    // Total Sheet Count Calculation (refined for sheets, not just pages)
+    const allDocTotalSheets = fileMetadata.reduce((sum, meta, i) => {
+        const opts = documentsOptions[i] || getDefaultOptions();
+        const tPgs = opts.pageRangeType === 'All' ? (meta.pageCount || 0) : calculateCustomPageCount(opts.customPages);
+        const ePgs = opts.pagesPerSheet === 2 ? Math.ceil(tPgs / 2) : tPgs;
+        const totalPagesToPrint = ePgs * (opts.copies || 1);
+        const bSheets = opts.side === 'Double' ? Math.ceil(totalPagesToPrint / 2) : totalPagesToPrint;
+        return sum + bSheets;
+    }, 0);
+
+    const allDocTotalpgs = fileMetadata.reduce((sum, meta, i) => {
+        const opts = documentsOptions[i] || getDefaultOptions();
+        const tPgs = opts.pageRangeType === 'All' ? (meta.pageCount || 0) : calculateCustomPageCount(opts.customPages);
+        const copies = opts.copies || 1;
+        return sum + (tPgs * copies);
+    }, 0);
+
+    // Auto-Bulk Detection
+    useEffect(() => {
+        const isBulk = allDocTotalSheets >= 2500;
+        setIsBulkOrder(isBulk);
+        if (isBulk && !courierPartner.includes('Parcel')) {
+            // Suggest parcel for bulk
+            // But don't force it unless they want free shipping
+        }
+    }, [allDocTotalSheets, courierPartner]);
 
     const [loading, setLoading] = useState(false);
     const [processingFiles, setProcessingFiles] = useState(false);
@@ -174,27 +219,10 @@ const PrintPage = () => {
         }
     }, [user, fulfillment]);
 
-    const calculateCustomPageCount = (range) => {
-        if (!range) return 0;
-        const parts = range.split(',').map(p => p.trim());
-        let count = 0;
-        parts.forEach(part => {
-            if (part.includes('-')) {
-                const [start, end] = part.split('-').map(Number);
-                if (!isNaN(start) && !isNaN(end) && end >= start) {
-                    count += (end - start + 1);
-                }
-            } else {
-                const num = Number(part);
-                if (!isNaN(num) && num > 0) count += 1;
-            }
-        });
-        return count;
-    };
 
     useEffect(() => {
         if (documentsOptions.length === 0 || fileMetadata.length === 0) {
-            setPricing({ basePrint: 0, sideDiscount: 0, print: 0, binding: 0, delivery: 0, couponDiscount: 0, walletUsed: 0, total: 0, weight: 0 });
+            setPricing({ basePrint: 0, sideDiscount: 0, print: 0, binding: 0, delivery: 0, couponDiscount: 0, referralDiscount: 0, walletUsed: 0, total: 0, weight: 0 });
             setDocumentPrices([]);
             return;
         }
@@ -253,7 +281,8 @@ const PrintPage = () => {
         let deliveryCharge = 0;
         if (fulfillment === 'delivery' && hasValidPincode) {
             // Bulk Order Free Shipping logic for Parcel Service
-            if (isBulkOrder && totalSheets >= 2500 && deliveryMethod === 'parcel') {
+            // Bulk Order Free Shipping logic ONLY for Parcel Service
+            if (isBulkOrder && totalSheets >= 2500 && courierPartner.includes('Parcel')) {
                 deliveryCharge = 0;
             } else {
                 if (calcWeight <= 3) deliveryCharge = 35 * calcWeight;
@@ -288,7 +317,7 @@ const PrintPage = () => {
             total,
             weight: calcWeight
         });
-    }, [fileMetadata, documentsOptions, fulfillment, couponApplied, useWallet, walletBalance, rules, step, delivery.pincode]);
+    }, [fileMetadata, documentsOptions, fulfillment, courierPartner, isBulkOrder, allDocTotalSheets, couponApplied, useWallet, walletBalance, rules, step, delivery.pincode]);
 
     const handlePincodeChange = async (pincode) => {
         setDelivery(prev => ({ ...prev, pincode }));
@@ -399,7 +428,7 @@ const PrintPage = () => {
                     method: fulfillment,
                     pickupLocation: fulfillment === 'pickup' ? 'Print Express Store, Coimbatore' : undefined
                 },
-                deliveryDetails: fulfillment === 'delivery' ? delivery : undefined,
+                deliveryDetails: fulfillment === 'delivery' ? { ...delivery, courierPartner } : undefined,
                 paymentMethod: paymentMethod === 'UPI' ? 'RAZORPAY' : paymentMethod,
                 isPaid: false,
                 couponCode: couponApplied?.code || '',
@@ -529,21 +558,6 @@ const PrintPage = () => {
     const totalBillingSheets = billingSheets * (options.copies || 1);
     const canStaple = totalBillingSheets <= 50;
 
-    const allDocTotalpgs = fileMetadata.reduce((sum, meta, i) => {
-        const opts = documentsOptions[i] || getDefaultOptions();
-        const tPgs = opts.pageRangeType === 'All' ? (meta.pageCount || 0) : calculateCustomPageCount(opts.customPages);
-        const copies = opts.copies || 1;
-        return sum + (tPgs * copies);
-    }, 0);
-
-    const allDocTotalSheets = fileMetadata.reduce((sum, meta, i) => {
-        const opts = documentsOptions[i] || getDefaultOptions();
-        const tPgs = opts.pageRangeType === 'All' ? (meta.pageCount || 0) : calculateCustomPageCount(opts.customPages);
-        const ePgs = opts.pagesPerSheet === 2 ? Math.ceil(tPgs / 2) : tPgs;
-        const totalPagesToPrint = ePgs * (opts.copies || 1);
-        const bSheets = opts.side === 'Double' ? Math.ceil(totalPagesToPrint / 2) : totalPagesToPrint;
-        return sum + bSheets;
-    }, 0);
 
     return (
         <div className="py-12 max-w-6xl mx-auto space-y-12">
@@ -597,21 +611,23 @@ const PrintPage = () => {
                                 </div>
                             </div>
 
-                            <div className="flex justify-between items-center py-2 border-b border-blue-100/50">
-                                <div className="flex flex-col">
-                                    <span className="text-text-muted text-sm">Bulk Order</span>
-                                    <span className="text-[10px] text-blue-600 font-bold uppercase">Free Parcel Shipping &gt;2500 Sheets</span>
+                            {isBulkOrder ? (
+                                <div className="flex justify-between items-center py-2 border-b border-blue-100/50 bg-blue-50/50 px-2 rounded-lg">
+                                    <div className="flex flex-col">
+                                        <span className="text-blue-700 text-sm font-bold">Bulk Order Active</span>
+                                        <span className="text-[10px] text-blue-600 font-bold uppercase">Free Parcel Shipping Applied</span>
+                                    </div>
+                                    <span className="text-xl">📦</span>
                                 </div>
-                                <button
-                                    onClick={() => {
-                                        if (!isBulkOrder) setShowBulkAlert(true);
-                                        setIsBulkOrder(!isBulkOrder);
-                                    }}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isBulkOrder ? 'bg-blue-600' : 'bg-slate-200'}`}
-                                >
-                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBulkOrder ? 'translate-x-6' : 'translate-x-1'}`} />
-                                </button>
-                            </div>
+                            ) : allDocTotalSheets > 2000 ? (
+                                <div className="flex justify-between items-center py-2 border-b border-blue-100/50">
+                                    <div className="flex flex-col">
+                                        <span className="text-text-muted text-sm">Almost Bulk!</span>
+                                        <span className="text-[10px] text-orange-600 font-bold uppercase">Add {2500 - allDocTotalSheets} more sheets for Free Parcel</span>
+                                    </div>
+                                    <span className="text-lg opacity-50">📫</span>
+                                </div>
+                            ) : null}
 
 
                             {/* Detailed Breakdown in Step 4 */}
@@ -724,7 +740,14 @@ const PrintPage = () => {
                     <div className="card-premium p-6 flex flex-col items-center text-center space-y-2 border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-white">
                         <p className="text-sm font-bold text-orange-800">💡 Need Support?</p>
                         <p className="text-xs text-text-muted">Confused about sides or binding? Chat with us on WhatsApp for instant assistance.</p>
-                        <button type="button" className="text-orange-600 font-bold text-sm mt-2 flex items-center gap-2 hover:text-orange-700">WhatsApp Support 🔗</button>
+                        <a 
+                            href="https://wa.me/919894957422?text=Hello,%20I%20need%20support%20with%20my%20print%20order." 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-orange-600 font-bold text-sm mt-2 flex items-center gap-2 hover:text-orange-700 transition-colors"
+                        >
+                            WhatsApp Support 🔗
+                        </a>
                     </div>
                 </div>
 
@@ -1088,7 +1111,7 @@ const PrintPage = () => {
                                         >
                                             <div className="absolute top-0 right-0 bg-blue-600 text-white text-[8px] px-1.5 py-0.5 rounded-bl-lg z-10">₹{options.paperSize === 'A3' ? (rules?.additional?.a3_binding || 40) : (rules?.additional?.binding || 15)}</div>
                                             <div className="w-10 h-10 md:w-8 md:h-8 rounded overflow-hidden">
-                                                <img src={assets.spiral_binding_icon} alt="Spiral" className="w-full h-full object-cover" />
+                                                <img src={assets.spiral_binding_icon} alt="Spiral" className="w-full h-full object-contain" />
                                             </div>
                                             <span className="text-[11px] md:text-[10px]">Spiral</span>
                                             {options.binding === 'Spiral' && totalBillingSheets > 300 && (
@@ -1105,7 +1128,7 @@ const PrintPage = () => {
                                         >
                                             <div className="absolute top-0 right-0 bg-orange-600 text-white text-[8px] px-1.5 py-0.5 rounded-bl-lg z-10">₹{options.paperSize === 'A3' ? (rules?.additional?.a3_chart_binding || 20) : (rules?.additional?.chart_binding || 10)}</div>
                                             <div className="w-10 h-10 md:w-8 md:h-8 rounded overflow-hidden">
-                                                <img src={assets.chart_binding_icon} alt="Chart" className="w-full h-full object-cover" />
+                                                <img src={assets.chart_binding_icon} alt="Chart" className="w-full h-full object-contain" />
                                             </div>
                                             <span className="text-[11px] md:text-[10px]">Chart</span>
                                         </button>
@@ -1198,29 +1221,35 @@ const PrintPage = () => {
 
                             {fulfillment === 'delivery' && (
                                 <div className="space-y-3 p-4 bg-blue-50/50 rounded-2xl border border-blue-100 mt-4">
-                                    <p className="text-xs font-bold text-blue-800 uppercase tracking-widest">Select Delivery Type</p>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <p className="text-xs font-bold text-blue-800 uppercase tracking-widest">Select Courier Partner</p>
+                                    <div className="grid grid-cols-1 gap-3">
                                         <button
                                             type="button"
-                                            onClick={() => setDeliveryMethod('standard')}
-                                            className={`p-3 rounded-xl border-2 transition-all text-xs font-bold ${deliveryMethod === 'standard' ? 'bg-white border-blue-600 text-blue-800 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-500'}`}
+                                            onClick={() => setCourierPartner('ST/DTDC Courier')}
+                                            className={`p-4 rounded-xl border-2 transition-all text-sm font-bold flex flex-col items-start ${courierPartner === 'ST/DTDC Courier' ? 'bg-white border-blue-600 text-blue-800 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-500'}`}
                                         >
-                                            Standard Courier
+                                            <div className="flex justify-between w-full">
+                                                <span>In Courier Service (ST Courier, DTDC courier)</span>
+                                                {courierPartner === 'ST/DTDC Courier' && <span>✓</span>}
+                                            </div>
+                                            <span className="text-[10px] font-normal opacity-70 mt-1">(Home Delivery Available)</span>
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setDeliveryMethod('parcel');
-                                                if (isBulkOrder && allDocTotalSheets < 2500) {
-                                                    toast("Bulk order free shipping requires > 2500 sheets", { icon: '📦' });
-                                                }
-                                            }}
-                                            className={`p-3 rounded-xl border-2 transition-all text-xs font-bold ${deliveryMethod === 'parcel' ? 'bg-white border-blue-600 text-blue-800 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-500'}`}
-                                        >
-                                            Parcel Service (MSS, A1, Rathimeena)
-                                        </button>
+
+                                        {(allDocTotalSheets > 2500) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setCourierPartner('Parcel Service (A1, Rathimeena, MSS)')}
+                                                className={`p-4 rounded-xl border-2 transition-all text-sm font-bold flex flex-col items-start ${courierPartner === 'Parcel Service (A1, Rathimeena, MSS)' ? 'bg-white border-blue-600 text-blue-800 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-500'}`}
+                                            >
+                                                <div className="flex justify-between w-full">
+                                                    <span>Parcel Service (A1, Rathimeena, MSS)</span>
+                                                    {courierPartner === 'Parcel Service (A1, Rathimeena, MSS)' && <span>✓</span>}
+                                                </div>
+                                                <span className="text-[10px] font-normal opacity-70 mt-1">(Home Delivery Not Available - Need to collect in Hub)</span>
+                                            </button>
+                                        )}
                                     </div>
-                                    {isBulkOrder && allDocTotalSheets >= 2500 && deliveryMethod === 'parcel' && (
+                                    {isBulkOrder && allDocTotalSheets >= 2500 && courierPartner.includes('Parcel') && (
                                         <p className="text-[10px] text-green-600 font-bold flex items-center gap-1 animate-pulse">
                                             ✨ Bulk Order Benefit: Free shipping applied!
                                         </p>
@@ -1439,7 +1468,7 @@ const PrintPage = () => {
                                         <div>
                                             <p className="font-bold text-sm text-amber-800">Wallet Coins</p>
                                             <p className="text-xs text-amber-600">Available: ₹{walletBalance}</p>
-                                        </div>
+                                    </div>
                                     </div>
                                     <p className="text-lg font-bold text-green-600">-₹{pricing.walletUsed}</p>
                                 </div>
@@ -1484,7 +1513,6 @@ const PrintPage = () => {
                     )}
                 </div>
             </div>
-        <BulkOrderAlert isOpen={showBulkAlert} onClose={() => setShowBulkAlert(false)} />
         </div>
     );
 };

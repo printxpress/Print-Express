@@ -293,6 +293,16 @@ const Orders = () => {
                                             <p className="font-bold text-xs truncate max-w-[200px]" title={order.files[optIdx]?.originalName}>
                                                 📄 {order.files[optIdx]?.originalName || `File ${optIdx + 1}`}
                                             </p>
+                                            <div className="flex gap-2">
+                                                <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                                                    {order.fulfillment?.method || 'Standard'}
+                                                </span>
+                                                {order.deliveryDetails?.courierPartner && (
+                                                    <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                                                        🚚 {order.deliveryDetails.courierPartner}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="flex flex-col items-end gap-1">
                                                 <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-black">
                                                     {opt.copies} COPIES
