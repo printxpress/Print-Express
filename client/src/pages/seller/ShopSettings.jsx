@@ -14,7 +14,8 @@ const ShopSettings = () => {
         gstNumber: '',
         tagline: '',
         locationUrl: '',
-        deliveryBaseCharge: 40
+        deliveryBaseCharge: 40,
+        referralCost: 100
     });
 
     const fetchSettings = async () => {
@@ -125,6 +126,17 @@ const ShopSettings = () => {
                                 onChange={e => setSettings({ ...settings, deliveryBaseCharge: Number(e.target.value) })}
                                 className="input-field"
                                 placeholder="40"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-text-muted uppercase tracking-wider ml-1">Referral Earn Amount (₹)</label>
+                            <input
+                                type="number"
+                                value={settings.referralCost}
+                                onChange={e => setSettings({ ...settings, referralCost: Number(e.target.value) })}
+                                className="input-field"
+                                placeholder="100"
                                 required
                             />
                         </div>

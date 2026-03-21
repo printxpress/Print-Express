@@ -7,16 +7,13 @@ const Orders = () => {
     const { axios, sellerRole } = useAppContext()
     const [orders, setOrders] = useState([]);
     const [shopSettings, setShopSettings] = useState(null);
-    const [filter, setFilter] = useState('all'); // all, online, pos
+    const [filter, setFilter] = useState('all'); // all, online
     const [editingOrder, setEditingOrder] = useState(null);
-    const [editForm, setEditForm] = useState([]);
-    const [editingFileIndex, setEditingFileIndex] = useState(0);
 
     const filteredOrders = orders.filter(o => {
         const isPos = o.files.some(f => f.fileType === 'POS Service');
         if (filter === 'online') return !isPos;
-        if (filter === 'pos') return isPos;
-        return true;
+        return !isPos; // Default: hide POS
     });
 
     const fetchOrders = async () => {
@@ -244,13 +241,13 @@ const Orders = () => {
             </div>
 
             <div className="flex gap-4 border-b border-border pb-px">
-                {['all', 'online', 'pos'].map((type) => (
+                {['all', 'online'].map((type) => (
                     <button
                         key={type}
                         onClick={() => setFilter(type)}
                         className={`pb-4 px-2 text-sm font-bold capitalize transition-all relative ${filter === type ? 'text-primary' : 'text-text-muted hover:text-text-main'}`}
                     >
-                        {type} {type === 'pos' ? 'History' : 'Orders'}
+                        {type} Orders
                         {filter === type && <div className="absolute bottom-0 left-0 w-full h-1 bg-primary rounded-t-full shadow-[0_-2px_8px_rgba(59,130,246,0.3)]"></div>}
                     </button>
                 ))}
@@ -334,6 +331,28 @@ const Orders = () => {
                                     </div>
                                 )) : (
                                     <p className="font-medium text-red-500 italic">Legacy Order Format - Options Missing</p>
+                                )}
+
+                                {order.files?.length > 1 && (
+                                    <div className="pt-2">
+                                        <button 
+                                            onClick={() => {
+                                                order.files.forEach((file, i) => {
+                                                   setTimeout(() => {
+                                                        const link = document.createElement('a');
+                                                        link.href = file.url;
+                                                        link.download = file.originalName || `file_${i+1}`;
+                                                        document.body.appendChild(link);
+                                                        link.click();
+                                                        document.body.removeChild(link);
+                                                   }, i * 500);
+                                                });
+                                            }}
+                                            className="w-full py-2 bg-blue-100 text-blue-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border border-blue-200"
+                                        >
+                                            📦 Download All ({order.files.length} Files)
+                                        </button>
+                                    </div>
                                 )}
 
                                 <div className="flex flex-wrap gap-2 pt-2">

@@ -113,7 +113,7 @@ export const verifyOtp = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        const isProfileComplete = !!(user.name && user.email);
+        const isProfileComplete = !!(user.name);
 
         return res.json({ success: true, user, isProfileComplete });
     } catch (error) {
@@ -249,6 +249,18 @@ export const deleteCustomer = async (req, res) => {
 
         res.json({ success: true, message: 'Customer and wallet deleted successfully' });
     } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+}
+
+// Get Referred Persons : /api/user/referred-persons
+export const getReferredPersons = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const referredUsers = await User.find({ referredBy: userId }).select('name phone createdAt').sort({ createdAt: -1 });
+        return res.json({ success: true, referrals: referredUsers });
+    } catch (error) {
+        console.log(error.message);
         res.json({ success: false, message: error.message });
     }
 }

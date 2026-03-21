@@ -4,8 +4,24 @@ import toast from 'react-hot-toast';
 import PrintingAnimation from '../components/PrintingAnimation';
 
 const ReferAndEarn = () => {
-    const { user, setShowUserLogin } = useAppContext();
+    const { user, setShowUserLogin, axios } = useAppContext();
     const [copied, setCopied] = useState(false);
+    const [referrals, setReferrals] = useState([]);
+
+    const fetchReferrals = async () => {
+        try {
+            const { data } = await axios.get('/api/user/referred-persons');
+            if (data.success) {
+                setReferrals(data.referrals);
+            }
+        } catch (error) {
+            console.error("Error fetching referrals", error);
+        }
+    };
+
+    React.useEffect(() => {
+        if (user) fetchReferrals();
+    }, [user]);
 
     if (!user) {
         return (
@@ -144,7 +160,7 @@ const ReferAndEarn = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="card-premium p-8 text-center border-2 border-slate-100 hover:border-blue-100 bg-white group transition-all">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Total Referrals</p>
-                    <p className="text-5xl font-black font-outfit text-slate-900 group-hover:text-blue-600 transition-colors">{user?.referralCredits?.length || 0}</p>
+                    <p className="text-5xl font-black font-outfit text-slate-900 group-hover:text-blue-600 transition-colors">{referrals.length}</p>
                 </div>
                 <div className="card-premium p-8 text-center border-2 border-slate-100 hover:border-blue-100 bg-white group transition-all">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Wallet Balance</p>
@@ -155,6 +171,35 @@ const ReferAndEarn = () => {
                     <p className="text-xl font-black font-outfit text-green-600 uppercase tracking-tight">Active Now ✨</p>
                 </div>
             </div>
+
+            {/* Referred Persons List */}
+            {referrals.length > 0 && (
+                <div className="card-premium p-8 bg-white border border-slate-100">
+                    <h3 className="text-2xl font-black font-outfit text-slate-900 mb-6 flex items-center gap-2">
+                        👥 People You Referred
+                    </h3>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="border-b border-slate-100">
+                                    <th className="pb-4 text-xs font-black text-slate-400 uppercase tracking-widest">Name</th>
+                                    <th className="pb-4 text-xs font-black text-slate-400 uppercase tracking-widest">Phone</th>
+                                    <th className="pb-4 text-xs font-black text-slate-400 uppercase tracking-widest">Joined Date</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {referrals.map((ref, idx) => (
+                                    <tr key={idx} className="group">
+                                        <td className="py-4 font-bold text-slate-700 group-hover:text-blue-600 transition-colors">{ref.name}</td>
+                                        <td className="py-4 font-mono text-slate-500 text-sm">XXXXXX{ref.phone.slice(-4)}</td>
+                                        <td className="py-4 text-slate-500 text-sm">{new Date(ref.createdAt).toLocaleDateString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Terms */}
             <div className="card-premium p-8 bg-slate-50 border border-slate-100">

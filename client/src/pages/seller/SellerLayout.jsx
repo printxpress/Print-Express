@@ -11,7 +11,6 @@ const SellerLayout = () => {
 
     const sidebarLinks = [
         { name: "Dashboard", path: "/seller", icon: "🏠", roles: ['admin', 'billing_manager'] },
-        { name: "POS Mode", path: "/seller/pos", icon: "📟", roles: ['admin'] },
         { name: "Print Orders", path: "/seller/orders", icon: "🖨️", roles: ['admin', 'billing_manager'] },
         { name: "Customers", path: "/seller/customers", icon: "👥", roles: ['admin', 'billing_manager'] },
         { name: "Analytics", path: "/seller/analytics", icon: "📊", roles: ['admin'] },

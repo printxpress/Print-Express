@@ -107,7 +107,6 @@ const Profile = () => {
     const validateForm = () => {
         let newErrors = {};
         if (!formData.name) newErrors.name = "Name is required";
-        if (!formData.email) newErrors.email = "Email is required";
         if (!formData.address.line1) newErrors.line1 = "Street address is required";
         if (!/^\d{6}$/.test(formData.address.pincode)) newErrors.pincode = "Invalid pincode (6 digits)";
         if (!formData.address.city) newErrors.city = "City is required";

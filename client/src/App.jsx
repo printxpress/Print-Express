@@ -70,7 +70,6 @@ const App = () => {
             <Route index element={sellerRole === 'billing_manager' ? <BillingDashboard /> : <Dashboard />} />
             <Route path='dashboard' element={sellerRole === 'billing_manager' ? <BillingDashboard /> : <Dashboard />} />
             <Route path='billing-dashboard' element={<BillingDashboard />} />
-            <Route path='pos' element={<POSMode />} />
             <Route path='orders' element={<Orders />} />
             <Route path='services' element={<ManageServices />} />
             <Route path='pricing' element={<PricingRules />} />
