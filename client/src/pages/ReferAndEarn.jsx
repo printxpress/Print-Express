@@ -40,7 +40,7 @@ const ReferAndEarn = () => {
     }
 
     const referralCode = user.referralCode || 'NOTSET';
-    const referralLink = `${window.location.origin}/?ref=${referralCode}`;
+    const referralLink = `https://printxpress.github.io/Print_Express/?ref=${referralCode}`;
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(referralLink);
@@ -50,7 +50,7 @@ const ReferAndEarn = () => {
     };
 
     const shareOnWhatsApp = () => {
-        const message = `🚀 *Exclusive Print Express Offer!* 🚀\n\nI'm using *Print Express* for high-quality printing! 🖨️\n\nUse my referral code *${referralCode}* to get *10% DISCOUNT* on every order! 💰\n\n*How it works:*\n1️⃣ Click the link: ${window.location.origin}\n2️⃣ Sign up and use code: *${referralCode}*\n3️⃣ Place your order and enjoy the discount!\n\nJoin now: ${window.location.origin}`;
+        const message = `🚀 *Exclusive Print Express Offer!* 🚀\n\nI'm using *Print Express* for high-quality printing! 🖨️\n\nUse my referral code *${referralCode}* to get *10% DISCOUNT* on every order! 💰\n\n*How it works:*\n1️⃣ Go to this link and download our app: https://printxpress.github.io/Print_Express/\n2️⃣ Login with the referral ID: *${referralCode}*\n3️⃣ Place your order and enjoy the discount!\n\nDownload now: https://printxpress.github.io/Print_Express/`;
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     };
 
@@ -82,7 +82,7 @@ const ReferAndEarn = () => {
                         <div className="flex-1 space-y-8 w-full">
                             <div className="space-y-2">
                                 <h2 className="text-3xl font-black font-outfit text-slate-900 tracking-tight">Your Referral Code</h2>
-                                <p className="text-slate-500 text-sm font-medium">Share this code with your friends during signup</p>
+                                <p className="text-slate-500 text-sm font-medium">Share this code with your friends to use during login</p>
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-4">
@@ -144,8 +144,8 @@ const ReferAndEarn = () => {
             {/* How It Works */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {[
-                    { icon: '📤', title: 'Share Your Link', desc: 'Share your unique referral code with friends and family.', color: 'blue' },
-                    { icon: '🛒', title: 'They Register', desc: 'Your friends sign up using your code on Print Express.', color: 'indigo' },
+                    { icon: '📤', title: 'Share Your Link', desc: 'Share your unique referral link with friends and family.', color: 'blue' },
+                    { icon: '🛒', title: 'Download & Login', desc: 'Your friends download the app and login using your referral ID.', color: 'indigo' },
                     { icon: '💰', title: 'You Both Earn', desc: 'Get 10% DISCOUNT on every order after referral!', color: 'green' }
                 ].map((step, index) => (
                     <div key={index} className="card-premium p-8 text-center space-y-4 hover:-translate-y-2 transition-all duration-500 bg-white border border-slate-100">
