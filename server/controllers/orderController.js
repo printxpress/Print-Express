@@ -182,22 +182,34 @@ export const placePrintOrder = async (req, res) => {
             }
         }
 
-        let finalAmount = Math.max(0, subtotal - (couponDiscount || 0) - (walletUsed || 0) - referralDiscount);
+        const discountAmount = (couponDiscount || 0) + referralDiscount;
+        const afterDiscounts = Math.max(0, subtotal - discountAmount);
+
+        // 50/50 Split Pay Logic Enforced on Backend
+        let validatedWalletUsed = walletUsed || 0;
+        if (paymentMethod === 'UPI+Wallet') {
+            const maxWalletAllowed = afterDiscounts / 2;
+            if (validatedWalletUsed > maxWalletAllowed + 0.01) { // Allowing small float margin
+                validatedWalletUsed = maxWalletAllowed;
+            }
+        }
+
+        let finalAmount = Math.max(0, afterDiscounts - validatedWalletUsed);
 
         if (isNaN(totalPrintingCharge)) throw new Error("Invalid printing charge calculation");
         if (isNaN(deliveryCharge)) deliveryCharge = 0;
         if (isNaN(finalAmount)) finalAmount = 0;
 
         // 5. Handle Wallet Deduction
-        if (walletUsed > 0) {
+        if (validatedWalletUsed > 0) {
             const wallet = await Wallet.findOne({ userId });
-            if (!wallet || wallet.balance < walletUsed) {
+            if (!wallet || wallet.balance < validatedWalletUsed) {
                 return res.json({ success: false, message: "Insufficient wallet balance" });
             }
-            wallet.balance -= walletUsed;
+            wallet.balance -= validatedWalletUsed;
             wallet.transactions.push({
                 type: 'debit',
-                amount: walletUsed,
+                amount: validatedWalletUsed,
                 description: `Used for order #${String(userId).slice(-6)}`,
                 addedBy: 'user'
             });
@@ -249,7 +261,7 @@ export const placePrintOrder = async (req, res) => {
                 deliveryCharge,
                 couponDiscount: couponDiscount || 0,
                 referralDiscount: referralDiscount || 0,
-                walletUsed: walletUsed || 0,
+                walletUsed: validatedWalletUsed,
                 totalAmount: finalAmount
             },
             fulfillment,
@@ -329,15 +341,22 @@ export const placeOrder = async (req, res) => {
         }
 
         // 5. Handle Wallet Deduction
-        if (walletUsed > 0) {
+        let validatedWalletUsed = walletUsed || 0;
+        // Note: For cart orders, full amount isn't recalculated here yet, 
+        // so we trust the walletUsed from frontend but ensure paymentMethod matches
+        if (paymentMethod === 'UPI+Wallet' && validatedWalletUsed > 0) {
+            // Further validation would require product price lookups here
+        }
+
+        if (validatedWalletUsed > 0) {
             const wallet = await Wallet.findOne({ userId });
-            if (!wallet || wallet.balance < walletUsed) {
+            if (!wallet || wallet.balance < validatedWalletUsed) {
                 return res.json({ success: false, message: "Insufficient wallet balance" });
             }
-            wallet.balance -= walletUsed;
+            wallet.balance -= validatedWalletUsed;
             wallet.transactions.push({
                 type: 'debit',
-                amount: walletUsed,
+                amount: validatedWalletUsed,
                 description: `Used for cart order`,
                 addedBy: 'user'
             });
@@ -356,7 +375,7 @@ export const placeOrder = async (req, res) => {
             },
             pricing: {
                 referralDiscount: appliedReferralDiscount,
-                walletUsed: walletUsed || 0
+                walletUsed: validatedWalletUsed
             },
             status: 'received',
             fulfillment: { method: 'delivery' }

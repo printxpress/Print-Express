@@ -13,7 +13,10 @@ const Footer = () => {
                     <div className="flex gap-8">
                         <NavLink to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</NavLink>
                         <NavLink to="/terms" className="hover:text-primary transition-colors">Terms of Service</NavLink>
-                        <a href="mailto:support@printexpress.in" className="hover:text-primary transition-colors">Contact Support</a>
+                        <a href="https://wa.me/917603957422" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1">
+                            <span className="text-sm">💬</span> Support
+                        </a>
+                        <a href="mailto:support@printexpress.in" className="hover:text-primary transition-colors">Contact</a>
                     </div>
                 </div>
             </div>

@@ -26,7 +26,17 @@ const Cart = () => {
     }
 
     const totalAmount = Math.max(0, subtotalWithTax - referralDiscount);
-    const walletUsed = useWallet ? Math.min(walletBalance, totalAmount) : 0;
+    
+    // 50/50 Split Pay Logic
+    let walletUsed = 0;
+    if (useWallet) {
+        if (paymentMethod === 'UPI+Wallet') {
+            walletUsed = Math.min(walletBalance, totalAmount / 2);
+        } else {
+            walletUsed = Math.min(walletBalance, totalAmount);
+        }
+    }
+    
     const finalTotalAmount = totalAmount - walletUsed;
 
     const placeOrder = async (isPaidViaRazorpay = false) => {
@@ -264,6 +274,12 @@ const Cart = () => {
                                         if (isWalletEmpty) {
                                             toast.error("Your wallet is empty.");
                                             return;
+                                        }
+                                        if (pm.id === 'UPI+Wallet') {
+                                            toast.success("Split Pay: ₹" + (totalAmount / 2).toFixed(2) + " will be used from wallet, remaining by Online. 🌗", {
+                                                icon: '🌗',
+                                                duration: 4000
+                                            });
                                         }
                                         setPaymentMethod(pm.id);
                                         setUseWallet(pm.id === 'Wallet' || pm.id === 'UPI+Wallet');

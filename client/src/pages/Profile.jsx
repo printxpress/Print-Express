@@ -437,6 +437,17 @@ const Profile = () => {
                             <textarea required rows={4} value={queryForm.message} onChange={e => setQueryForm({ ...queryForm, message: e.target.value })} className="input-field text-xs font-medium resize-none" placeholder="ELABORATE YOUR QUERY..." />
                             <button className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-lg shadow-black/10">TRANSMIT REQUEST</button>
                         </form>
+
+                        <div className="pt-4 border-t border-slate-100">
+                            <a 
+                                href="https://wa.me/917603957422?text=Hello,%20I%20need%20support%20with%20my%20account/order." 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="w-full py-3 bg-[#25D366] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#128C7E] transition-all shadow-lg flex items-center justify-center gap-2"
+                            >
+                                💬 WhatsApp Support 🔗
+                            </a>
+                        </div>
                     </div>
 
                     <div className="card-premium p-0 overflow-hidden divide-y divide-slate-50 border-slate-100">

@@ -301,7 +301,17 @@ const PrintPage = () => {
         }
 
         const afterDiscounts = Math.max(0, subtotal - couponDiscount - referralDiscount);
-        const walletUsed = useWallet ? Math.min(walletBalance, afterDiscounts) : 0;
+        
+        // 50/50 Split Pay Logic
+        let walletUsed = 0;
+        if (useWallet) {
+            if (paymentMethod === 'UPI+Wallet') {
+                walletUsed = Math.min(walletBalance, afterDiscounts / 2);
+            } else {
+                walletUsed = Math.min(walletBalance, afterDiscounts);
+            }
+        }
+        
         const total = afterDiscounts - walletUsed;
 
         setDocumentPrices(prices);
@@ -705,7 +715,7 @@ const PrintPage = () => {
                         {documentsOptions.reduce((sum, opt) => sum + (Number(opt.copies) || 0), 0) > 2500 && (
                             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-center animate-bounce">
                                 <a
-                                    href="https://wa.me/919894957422?text=Hello,%20I%20want%20to%20place%20a%20bulk%20order%20for%20more%20than%202500%20copies."
+                                    href="https://wa.me/917603957422?text=Hello,%20I%20want%20to%20place%20a%20bulk%20order%20for%20more%20than%202500%20copies."
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-xs font-bold text-blue-700 flex items-center justify-center gap-2"
@@ -741,7 +751,7 @@ const PrintPage = () => {
                         <p className="text-sm font-bold text-orange-800">💡 Need Support?</p>
                         <p className="text-xs text-text-muted">Confused about sides or binding? Chat with us on WhatsApp for instant assistance.</p>
                         <a 
-                            href="https://wa.me/919894957422?text=Hello,%20I%20need%20support%20with%20my%20print%20order." 
+                            href="https://wa.me/917603957422?text=Hello,%20I%20need%20support%20with%20my%20print%20order." 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-orange-600 font-bold text-sm mt-2 flex items-center gap-2 hover:text-orange-700 transition-colors"
@@ -1444,14 +1454,19 @@ const PrintPage = () => {
                                             type="button"
                                             key={pm.id}
                                             onClick={() => {
-                                                if (pm.id === 'Referral') return;
+                                                if (pm.id === 'Referral') return; // Referral is not selectable
                                                 if (isWalletEmpty) {
                                                     toast.error("Your wallet is empty. Add funds in your profile.");
                                                     return;
                                                 }
+                                                if (pm.id === 'UPI+Wallet') {
+                                                    toast.success("Split Pay: 50% from Wallet, 50% by Online. 🌗", {
+                                                        icon: '🌗',
+                                                        duration: 4000
+                                                    });
+                                                }
                                                 setPaymentMethod(pm.id);
-                                                if (pm.id === 'Wallet' || pm.id === 'UPI+Wallet') setUseWallet(true);
-                                                else setUseWallet(false);
+                                                setUseWallet(pm.id === 'Wallet' || pm.id === 'UPI+Wallet');
                                             }}
                                             disabled={pm.id === 'Referral' || (isWalletEmpty && paymentMethod === pm.id)}
                                             className={`p-4 rounded-xl border-2 transition-all text-left space-y-1 ${paymentMethod === pm.id
