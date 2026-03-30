@@ -839,8 +839,6 @@ export const generateThermalBillPDF = async (req, res) => {
         doc.fillColor('#64748b').text('Thank you for choosing Print Express!', { align: 'center', width: 500 });
 
         doc.end();
-
-        doc.end();
     } catch (error) {
         console.error("PDF Gen Error:", error);
         res.json({ success: false, message: error.message });
