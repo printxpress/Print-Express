@@ -14,6 +14,7 @@ const MainBanner = () => {
   };
 
   const sliderImages = [
+    assets.Banners5,
     assets.anbu_card,
     assets.Banners1,
     assets.Banners2,

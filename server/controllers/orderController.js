@@ -661,135 +661,184 @@ export const generateThermalBillPDF = async (req, res) => {
         const doc = new PDFDocument({ size: 'A4', margin: 50 });
 
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=invoice_${orderId.slice(-8)}.pdf`);
+        res.setHeader('Content-Disposition', `attachment; filename=invoice_${order.displayId || orderId.slice(-8)}.pdf`);
 
         doc.pipe(res);
 
-        // Header Section
+        // --- COLORS & STYLES ---
+        const primaryColor = '#1e40af';
+        const secondaryColor = '#444444';
+        const lightGray = '#f8fafc';
+        const borderColor = '#e2e8f0';
+        const successColor = '#16a34a';
+        const dangerColor = '#dc2626';
+
+        // --- HEADER SECTION ---
+        // Header Background Strip
+        doc.rect(0, 0, 612, 100).fill('#f1f5f9');
+        
+        // Logo
         const logoPath = path.join(__dirname, '../assets/logo.png');
         try {
-            doc.image(logoPath, 50, 45, { width: 100 });
+            doc.image(logoPath, 50, 25, { width: 120 });
         } catch (error) {
-            doc.fontSize(20).fillColor('#000').text('PRINT EXPRESS', 50, 50);
+            doc.fontSize(24).fillColor(primaryColor).font('Helvetica-Bold').text('PRINT EXPRESS', 50, 35);
         }
 
-        doc.fillColor('#444444')
-            .fontSize(20)
-            .text('INVOICE', 50, 50, { align: 'right' });
+        // Invoice Title & Status
+        doc.fillColor(secondaryColor).fontSize(28).font('Helvetica-Bold').text('INVOICE', 350, 30, { align: 'right' });
+        
+        const isPaid = order.payment?.isPaid;
+        const statusText = isPaid ? 'PAID' : 'UNPAID';
+        const statusColor = isPaid ? successColor : dangerColor;
+        
+        // Status Badge
+        doc.rect(480, 65, 70, 20).fill(statusColor);
+        doc.fillColor('#ffffff').fontSize(10).font('Helvetica-Bold').text(statusText, 480, 71, { width: 70, align: 'center' });
 
-        // Highlight Order ID in logo color
-        doc.fillColor('#1e40af') // Primary blue color
-            .fontSize(10)
-            .text(`Order ID: ${order.displayId || '#' + order._id.toString().slice(-8).toUpperCase()}`, 200, 65, { align: 'right' });
+        // --- ORDER INFO SECTION (Below Header) ---
+        doc.moveDown(4);
+        const infoTop = 130;
 
-        doc.fillColor('#444444')
-            .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 200, 80, { align: 'right' })
-            .moveDown();
+        // Order Details (Right Aligned)
+        doc.fillColor(secondaryColor).font('Helvetica').fontSize(10);
+        doc.text('Order ID:', 350, infoTop, { width: 100, align: 'left' });
+        doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(12)
+           .text(`${order.displayId || order._id.toString().slice(-8).toUpperCase()}`, 430, infoTop - 2, { 
+               align: 'right', 
+               link: `https://printexpress.in/order/${order._id}` 
+           });
 
-        doc.moveTo(50, 115).lineTo(550, 115).strokeColor('#eeeeee').stroke();
+        doc.fillColor(secondaryColor).font('Helvetica').fontSize(10);
+        doc.text('Date:', 350, infoTop + 20, { width: 100, align: 'left' });
+        doc.font('Helvetica-Bold').text(`${new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`, 430, infoTop + 20, { align: 'right' });
 
-        // Shop and Customer Info
-        doc.fillColor('#000').fontSize(10).font('Helvetica-Bold').text('SOLD BY:', 50, 130);
-        doc.font('Helvetica').fontSize(10);
-        doc.text(shop.name, 50, 145);
-        doc.text(shop.address, 50, doc.y, { width: 200 });
-        doc.text(`Phone: ${shop.phone}`, 50, doc.y);
-        if (shop.gstNumber) doc.text(`GST: ${shop.gstNumber}`, 50, doc.y);
+        // Bill Info
+        doc.moveTo(50, 180).lineTo(550, 180).strokeColor(borderColor).lineWidth(1).stroke();
 
-        doc.font('Helvetica-Bold').text('BILL TO:', 350, 130);
-        doc.font('Helvetica').fontSize(10);
-        doc.text(order.userId?.name || 'Walk-in Customer', 350, 145);
+        // SOLD BY / BILL TO Blocks
+        doc.fillColor(primaryColor).fontSize(10).font('Helvetica-Bold').text('SOLD BY', 50, 200);
+        doc.fillColor(secondaryColor).font('Helvetica').fontSize(9);
+        doc.moveDown(0.5);
+        doc.text(shop.name, { font: 'Helvetica-Bold' });
+        doc.font('Helvetica').text(shop.address, { width: 220 });
+        doc.text(`Phone: ${shop.phone}`);
+        if (shop.gstNumber) doc.text(`GST: ${shop.gstNumber}`);
 
+        doc.fillColor(primaryColor).fontSize(10).font('Helvetica-Bold').text('BILL TO', 350, 200);
+        doc.fillColor(secondaryColor).font('Helvetica').fontSize(9);
+        doc.moveDown(0.5);
+        doc.text(order.userId?.name || 'Walk-in Customer', { font: 'Helvetica-Bold' });
+        
         if (order.fulfillment?.method === 'pickup') {
-            doc.text('STORE PICKUP', 350, doc.y);
+            doc.fillColor(successColor).font('Helvetica-Bold').text('STORE PICKUP');
+            doc.fillColor(secondaryColor).font('Helvetica');
             if (order.fulfillment.pickupLocation) {
-                doc.text(order.fulfillment.pickupLocation, 350, doc.y, { width: 200 });
+                doc.text(order.fulfillment.pickupLocation, { width: 200 });
             }
-        } else if (order.deliveryDetails?.address) {
-            doc.text(order.deliveryDetails.address, 350, doc.y, { width: 200 });
-            const cityState = [order.deliveryDetails.dist, order.deliveryDetails.state].filter(Boolean).join(', ');
-            const pin = order.deliveryDetails.pincode ? ` - ${order.deliveryDetails.pincode}` : '';
-            if (cityState || pin) doc.text(`${cityState}${pin}`, 350, doc.y);
+        } else {
+            const addr = order.deliveryDetails;
+            if (addr?.address) {
+                doc.text(addr.address, { width: 200 });
+                const cityState = [addr.dist, addr.state].filter(Boolean).join(', ');
+                const pin = addr.pincode ? ` - ${addr.pincode}` : '';
+                if (cityState || pin) doc.text(`${cityState}${pin}`);
+            }
         }
-        doc.text(`Phone: ${order.deliveryDetails?.phone || order.userId?.phone || 'N/A'}`, 350, doc.y);
+        doc.text(`Phone: ${order.deliveryDetails?.phone || order.userId?.phone || 'N/A'}`);
 
-        doc.moveTo(50, 235).lineTo(550, 235).strokeColor('#000').lineWidth(0.5).stroke();
+        // --- ITEMS TABLE ---
+        const tableTop = 320;
+        doc.rect(50, tableTop, 500, 25).fill(primaryColor);
+        
+        doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(10);
+        doc.text('Description', 60, tableTop + 8);
+        doc.text('Pages', 250, tableTop + 8, { width: 60, align: 'center' });
+        doc.text('Copies', 310, tableTop + 8, { width: 60, align: 'center' });
+        doc.text('Category', 370, tableTop + 8, { width: 80, align: 'center' });
+        doc.text('Amount', 460, tableTop + 8, { width: 80, align: 'right' });
 
-        // Table Header
-        const tableTop = 250;
-        doc.font('Helvetica-Bold').fillColor('#444');
-        doc.text('Description', 50, tableTop);
-        doc.text('Pages', 250, tableTop, { width: 50, align: 'center' });
-        doc.text('Copies', 300, tableTop, { width: 50, align: 'center' });
-        doc.text('Category', 350, tableTop, { width: 100, align: 'center' });
-        doc.text('Amount', 450, tableTop, { width: 100, align: 'right' });
-
-        doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).strokeColor('#eeeeee').stroke();
-
-        // Table Rows
-        let currentY = tableTop + 30;
-        doc.font('Helvetica').fillColor('#000');
+        let currentY = tableTop + 25;
+        doc.font('Helvetica').fontSize(9);
 
         order.files.forEach((file, idx) => {
             const opts = Array.isArray(order.printOptions) ? (order.printOptions[idx] || order.printOptions[0]) : order.printOptions;
-            const fileName = file.originalName.length > 30 ? file.originalName.slice(0, 27) + '...' : file.originalName;
+            
+            // Alternating Row Background
+            if (idx % 2 === 1) {
+                doc.rect(50, currentY, 500, 25).fill(lightGray);
+            }
 
-            doc.text(fileName, 50, currentY, { width: 180 });
-            doc.text(opts?.pageRangeType || 'All', 250, currentY, { width: 50, align: 'center' });
-            doc.text((opts?.copies || 1).toString(), 300, currentY, { width: 50, align: 'center' });
-            doc.text(`${opts?.mode || 'B/W'} ${opts?.side || 'Single'}`, 350, currentY, { width: 100, align: 'center' });
+            doc.fillColor(secondaryColor);
+            const fileName = file.originalName.length > 35 ? file.originalName.slice(0, 32) + '...' : file.originalName;
+            doc.text(fileName, 60, currentY + 8, { width: 190 });
+            doc.text(opts?.pageRangeType || 'All', 250, currentY + 8, { width: 60, align: 'center' });
+            doc.text((opts?.copies || 1).toString(), 310, currentY + 8, { width: 60, align: 'center' });
+            doc.text(`${opts?.mode || 'B/W'} ${opts?.side || 'Sngl'}`, 370, currentY + 8, { width: 80, align: 'center' });
 
             const fileCharge = opts?.price || (order.pricing.printingCharge / order.files.length);
-            doc.text(`Rs. ${Number(fileCharge).toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
+            doc.font('Helvetica-Bold').text(`Rs. ${Number(fileCharge).toFixed(2)}`, 460, currentY + 8, { width: 80, align: 'right' }).font('Helvetica');
 
-            currentY += 20;
+            currentY += 25;
         });
 
-        // Show binding if any document has non-Loose binding
+        // Binding Row (if applicable)
         const bindingOpts = Array.isArray(order.printOptions) ? order.printOptions : [order.printOptions];
         const hasBinding = bindingOpts.some(o => o?.binding && o.binding !== 'Loose Papers');
-        if (hasBinding) {
+        if (hasBinding && order.pricing.bindingCharge > 0) {
             const bindTypes = [...new Set(bindingOpts.filter(o => o?.binding && o.binding !== 'Loose Papers').map(o => o.binding))];
-            doc.text(`Binding: ${bindTypes.join(', ')}`, 50, currentY);
-            doc.text(`Rs. ${order.pricing.bindingCharge.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
-            currentY += 20;
+            doc.text(`Binding: ${bindTypes.join(', ')}`, 60, currentY + 8);
+            doc.font('Helvetica-Bold').text(`Rs. ${order.pricing.bindingCharge.toFixed(2)}`, 460, currentY + 8, { width: 80, align: 'right' }).font('Helvetica');
+            currentY += 25;
         }
 
-        doc.moveTo(350, currentY).lineTo(550, currentY).strokeColor('#eeeeee').stroke();
+        // Border below table
+        doc.moveTo(50, currentY).lineTo(550, currentY).strokeColor(borderColor).stroke();
 
-        // Summary
-        currentY += 15;
+        // --- SUMMARY SECTION ---
+        currentY += 20;
         const summaryX = 350;
 
+        doc.fontSize(10).fillColor(secondaryColor);
         doc.text('Subtotal:', summaryX, currentY);
-        doc.text(`Rs. ${(order.pricing.printingCharge + order.pricing.bindingCharge).toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
+        doc.font('Helvetica-Bold').text(`Rs. ${(order.pricing.printingCharge + order.pricing.bindingCharge).toFixed(2)}`, 460, currentY, { width: 80, align: 'right' }).font('Helvetica');
 
         currentY += 20;
         doc.text('Delivery Charge:', summaryX, currentY);
-        doc.text(`Rs. ${order.pricing.deliveryCharge.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
+        doc.font('Helvetica-Bold').text(`Rs. ${order.pricing.deliveryCharge.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' }).font('Helvetica');
 
         if (order.pricing.couponDiscount > 0) {
             currentY += 20;
             doc.fillColor('#ea580c').text('Coupon Discount:', summaryX, currentY);
-            doc.text(`-Rs. ${order.pricing.couponDiscount.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' }).fillColor('#000');
+            doc.text(`-Rs. ${order.pricing.couponDiscount.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
         }
 
         if (order.pricing.walletUsed > 0) {
             currentY += 20;
-            doc.fillColor('#2563eb').text('Wallet Used:', summaryX, currentY);
-            doc.text(`-Rs. ${order.pricing.walletUsed.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' }).fillColor('#000');
+            doc.fillColor(primaryColor).text('Wallet Used:', summaryX, currentY);
+            doc.text(`-Rs. ${order.pricing.walletUsed.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
         }
 
+        // Total Amount Highlight
         currentY += 30;
-        doc.font('Helvetica-Bold').fontSize(14);
-        doc.text('TOTAL AMOUNT:', summaryX, currentY);
-        doc.text(`Rs. ${order.pricing.totalAmount.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
+        doc.rect(340, currentY - 10, 220, 40).fill(primaryColor);
+        doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(14);
+        doc.text('TOTAL AMOUNT:', 350, currentY);
+        doc.text(`Rs. ${order.pricing.totalAmount.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
 
-        // Footer
-        const footerY = 750;
-        doc.fontSize(10).font('Helvetica-Bold').text(shop.tagline, 50, footerY, { align: 'center', width: 500 });
-        doc.fontSize(8).font('Helvetica').fillColor('#777777').text('This is a computer-generated invoice and does not require a signature.', 50, footerY + 15, { align: 'center', width: 500 });
-        doc.text('Thank you for choosing Print Express!', 50, footerY + 30, { align: 'center', width: 500 });
+        // --- FOOTER SECTION ---
+        const footerY = 740;
+        doc.moveTo(50, footerY - 20).lineTo(550, footerY - 20).strokeColor(borderColor).stroke();
+        
+        doc.fillColor(secondaryColor).fontSize(10).font('Helvetica-Bold').text(shop.tagline, 50, footerY, { align: 'center', width: 500 });
+        doc.fontSize(8).font('Helvetica').fillColor('#64748b');
+        doc.text('This is a computer-generated invoice and does not require a physical signature.', 50, footerY + 15, { align: 'center', width: 500 });
+        doc.moveDown(0.5);
+        doc.fillColor(primaryColor).text('www.printexpress.in', { align: 'center', width: 500, link: 'https://printexpress.in' });
+        doc.moveDown(0.5);
+        doc.fillColor('#64748b').text('Thank you for choosing Print Express!', { align: 'center', width: 500 });
+
+        doc.end();
 
         doc.end();
     } catch (error) {

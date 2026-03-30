@@ -25,10 +25,11 @@ import main_banner_bg_sm from "./main_banner_bg_sm.png";
 import bottom_banner_image from "./bottom_banner_image.png";
 import bottom_banner_image_sm from "./bottom_banner_image_sm.png";
 import add_address_image from "./add_address_image.svg";
-import Banners1 from "./Banners1.JPG";
+import Banners1 from "./Banners1.jpg";
 import Banners2 from "./Banners2.JPG";
 import Banners3 from "./Banners3.JPG";
 import Banners4 from "./Banners4.JPG";
+import Banners5 from "./Banners5.jpg";
 import rubber_stamp from "./rubber_stamp.jpg";
 import anbu_card from "./anbu_card.jpg";
 import bw_print_icon from "./bw_print.png";
@@ -72,6 +73,7 @@ export const assets = {
   Banners2,
   Banners3,
   Banners4,
+  Banners5,
   rubber_stamp,
   anbu_card,
   bw_print_icon,

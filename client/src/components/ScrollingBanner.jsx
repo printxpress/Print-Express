@@ -8,6 +8,7 @@ const ScrollingBanner = () => {
 
     // Local banners provided by the user
     const localBanners = [
+        { image: assets.Banners5, title: "" },
         { image: assets.Banners1, title: "" },
         { image: assets.Banners2, title: "" },
         { image: assets.Banners3, title: "" },
