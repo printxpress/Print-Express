@@ -40,6 +40,7 @@ import spiral_binding_icon from "./spiral_icon.png";
 import chart_binding_icon from "./chart_binding_icon.jpeg";
 import pdf_icon from "./pdf_icon.jpeg";
 import staple_icon from "./staple_icon.jpg";
+import google_app_store from "./Google and App.jpg";
 
 export const assets = {
   logo,
@@ -84,6 +85,7 @@ export const assets = {
   chart_binding_icon,
   pdf_icon,
   staple_icon,
+  google_app_store,
 };
 
 export const categories = [
