@@ -928,10 +928,17 @@ export const downloadCustomerFile = async (req, res) => {
             return res.status(400).json({ success: false, message: "File URL is required" });
         }
 
+        let targetUrl = url;
+        if (targetUrl.startsWith('//')) {
+            targetUrl = 'https:' + targetUrl;
+        } else if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+            targetUrl = 'https://' + targetUrl;
+        }
+
         // Fetch the file as a stream from Cloudinary
         const response = await axios({
             method: 'get',
-            url: url,
+            url: targetUrl,
             responseType: 'stream'
         });
 

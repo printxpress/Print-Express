@@ -3,6 +3,15 @@ import { useAppContext } from '../../context/AppContext'
 import toast from 'react-hot-toast'
 import logo from '../../assets/logo.png'
 
+const getFullUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('//')) return 'https:' + url;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return 'https://' + url;
+    }
+    return url;
+};
+
 const Orders = () => {
     const { axios, sellerRole } = useAppContext()
     const [orders, setOrders] = useState([]);
@@ -229,15 +238,27 @@ const Orders = () => {
             toast.error("File URL not found");
             return;
         }
+        const targetUrl = getFullUrl(url);
         setDownloadingFile(prev => ({ ...prev, [url]: true }));
         try {
-            const response = await axios.get(`/api/order/download-file`, {
-                params: { url, filename: originalName },
-                responseType: 'blob'
-            });
+            let blob;
+            try {
+                // Try direct client-side fetch first (for CORS-enabled endpoints like standard Cloudinary)
+                const res = await fetch(targetUrl);
+                if (!res.ok) throw new Error("Direct fetch failed");
+                blob = await res.blob();
+            } catch (directErr) {
+                console.warn("Direct download failed, falling back to proxy...", directErr);
+                // Fallback to backend proxy
+                const response = await axios.get(`/api/order/download-file`, {
+                    params: { url: targetUrl, filename: originalName },
+                    responseType: 'blob'
+                });
+                blob = response.data;
+            }
 
-            if (response.data) {
-                const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+            if (blob) {
+                const downloadUrl = window.URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = downloadUrl;
                 link.setAttribute('download', originalName || 'download');
@@ -263,13 +284,22 @@ const Orders = () => {
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 if (!file.url) continue;
-                const response = await axios.get(`/api/order/download-file`, {
-                    params: { url: file.url, filename: file.originalName },
-                    responseType: 'blob'
-                });
+                const targetUrl = getFullUrl(file.url);
+                let blob;
+                try {
+                    const res = await fetch(targetUrl);
+                    if (!res.ok) throw new Error("Direct fetch failed");
+                    blob = await res.blob();
+                } catch (directErr) {
+                    const response = await axios.get(`/api/order/download-file`, {
+                        params: { url: targetUrl, filename: file.originalName },
+                        responseType: 'blob'
+                    });
+                    blob = response.data;
+                }
                 
-                if (response.data) {
-                    const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+                if (blob) {
+                    const downloadUrl = window.URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = downloadUrl;
                     link.setAttribute('download', file.originalName || `file_${i + 1}`);
@@ -394,7 +424,7 @@ const Orders = () => {
                                             {order.files[optIdx]?.url && (
                                                 <>
                                                     <a 
-                                                        href={order.files[optIdx].url} 
+                                                        href={getFullUrl(order.files[optIdx].url)} 
                                                         target="_blank" 
                                                         rel="noreferrer" 
                                                         className="px-2.5 py-1 bg-slate-950 text-white rounded text-[9px] font-bold hover:bg-black transition-colors whitespace-nowrap flex items-center gap-1 shadow-sm"
