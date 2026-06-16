@@ -8,15 +8,37 @@ export const getShopSettings = async (req, res) => {
             // Seed AnbuDigital default settings
             settings = await ShopSettings.create({
                 name: "AnbuDigital",
-                address: "Bengaluru Main Road, Theruvalluvar Nagar, Chengam 606701",
-                phone: "9894957422",
+                address: "7QWM+5WR, East Coast Rd, Chengam, Tamil Nadu 606709",
+                phone: "+91 7603-957422",
                 email: "",
-                whatsapp: "919894957422",
+                whatsapp: "917603957422",
                 tagline: "Quality at Speed",
-                locationUrl: "",
+                locationUrl: "https://share.google/tKCxInusEMuvdGsvO",
                 deliveryBaseCharge: 40,
                 referralCost: 100
             });
+        } else {
+            // Auto-update to new details if old ones are found
+            let needsUpdate = false;
+            if (settings.address === "Bengaluru Main Road, Theruvalluvar Nagar, Chengam 606701") {
+                settings.address = "7QWM+5WR, East Coast Rd, Chengam, Tamil Nadu 606709";
+                needsUpdate = true;
+            }
+            if (settings.phone === "9894957422" || settings.phone === "+91 98949 57422") {
+                settings.phone = "+91 7603-957422";
+                needsUpdate = true;
+            }
+            if (settings.whatsapp === "919894957422") {
+                settings.whatsapp = "917603957422";
+                needsUpdate = true;
+            }
+            if (!settings.locationUrl || settings.locationUrl === "") {
+                settings.locationUrl = "https://share.google/tKCxInusEMuvdGsvO";
+                needsUpdate = true;
+            }
+            if (needsUpdate) {
+                await settings.save();
+            }
         }
         res.json({ success: true, settings });
     } catch (error) {
@@ -30,7 +52,7 @@ export const updateShopSettings = async (req, res) => {
         const { name, address, phone, email, whatsapp, gstNumber, tagline, locationUrl, deliveryBaseCharge, referralCost } = req.body;
 
         // Validate phone
-        if (phone && !/^\d{10,15}$/.test(phone.replace(/\s/g, ''))) {
+        if (phone && !/^\d{10,15}$/.test(phone.replace(/[\s+-]/g, ''))) {
             return res.json({ success: false, message: "Invalid phone number format" });
         }
 

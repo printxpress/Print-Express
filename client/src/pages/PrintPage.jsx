@@ -1248,12 +1248,12 @@ const PrintPage = () => {
                                         {(allDocTotalSheets > 2500) && (
                                             <button
                                                 type="button"
-                                                onClick={() => setCourierPartner('Parcel Service (A1, Rathimeena, MSS)')}
-                                                className={`p-4 rounded-xl border-2 transition-all text-sm font-bold flex flex-col items-start ${courierPartner === 'Parcel Service (A1, Rathimeena, MSS)' ? 'bg-white border-blue-600 text-blue-800 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-500'}`}
+                                                onClick={() => setCourierPartner('Parcel Service (A1, MSS)')}
+                                                className={`p-4 rounded-xl border-2 transition-all text-sm font-bold flex flex-col items-start ${courierPartner === 'Parcel Service (A1, MSS)' ? 'bg-white border-blue-600 text-blue-800 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-500'}`}
                                             >
                                                 <div className="flex justify-between w-full">
-                                                    <span>Parcel Service (A1, Rathimeena, MSS)</span>
-                                                    {courierPartner === 'Parcel Service (A1, Rathimeena, MSS)' && <span>✓</span>}
+                                                    <span>Parcel Service (A1, MSS)</span>
+                                                    {courierPartner === 'Parcel Service (A1, MSS)' && <span>✓</span>}
                                                 </div>
                                                 <span className="text-[10px] font-normal opacity-70 mt-1">(Home Delivery Not Available - Need to collect in Hub)</span>
                                             </button>

@@ -37,8 +37,6 @@ import ReferAndEarn from './pages/ReferAndEarn';
 import Vouchers from './pages/Vouchers';
 import OrderSuccess from './pages/OrderSuccess';
 import ReferralManagement from './pages/seller/ReferralManagement';
-import AppStoreAlert from './components/AppStoreAlert';
-
 const App = () => {
 
   const isSellerPath = useLocation().pathname.includes("seller");
@@ -51,7 +49,6 @@ const App = () => {
       {showUserLogin ? <Login /> : null}
 
       <Toaster />
-      <AppStoreAlert />
 
       <div className={`${isSellerPath ? "" : "px-6 md:px-16 lg:px-24 xl:px-32"}`}>
         <Routes>

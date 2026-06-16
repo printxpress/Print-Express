@@ -25,7 +25,7 @@ const BulkOrderAlert = ({ isOpen, onClose }) => {
                     
                     <div className="bg-[#dcf8c6] p-4 rounded-lg rounded-tr-none shadow-sm relative max-w-[90%] float-right clear-both space-y-2">
                         <p className="text-xs font-bold text-slate-800">1. Bulk order should be above 2500 sheets</p>
-                        <p className="text-xs font-bold text-slate-800">2. If you wish to proceed with Parcel service like (MSS, A1 and Rathimeena) then shipping is FREE</p>
+                        <p className="text-xs font-bold text-slate-800">2. If you wish to proceed with Parcel service like (MSS and A1) then shipping is FREE</p>
                         <p className="text-xs font-bold text-slate-800">3. If you wish for that, click "Bulk Order" on the order summary and select "Parcel Service" in delivery during checkout.</p>
                         <div className="flex justify-end gap-1 mt-1">
                             <span className="text-[9px] text-[#555]">20:01</span>

@@ -334,12 +334,12 @@ const Cart = () => {
                         </button>
                         {isBulkOrder && (
                             <button
-                                onClick={() => setCourierPartner('Parcel Service (A1, Rathimeena, MSS)')}
-                                className={`w-full py-2 px-3 border-2 rounded-lg text-xs font-bold transition-all text-left flex flex-col ${courierPartner === 'Parcel Service (A1, Rathimeena, MSS)' ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 text-gray-500'}`}
+                                onClick={() => setCourierPartner('Parcel Service (A1, MSS)')}
+                                className={`w-full py-2 px-3 border-2 rounded-lg text-xs font-bold transition-all text-left flex flex-col ${courierPartner === 'Parcel Service (A1, MSS)' ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 text-gray-500'}`}
                             >
                                 <div className="flex justify-between items-center w-full">
-                                    <span>Parcel Service (A1, Rathimeena, MSS)</span>
-                                    <span>{courierPartner === 'Parcel Service (A1, Rathimeena, MSS)' ? '✓' : ''}</span>
+                                    <span>Parcel Service (A1, MSS)</span>
+                                    <span>{courierPartner === 'Parcel Service (A1, MSS)' ? '✓' : ''}</span>
                                 </div>
                                 <span className="text-[9px] font-normal opacity-70">(Home Delivery Not Available - Need to collect in Hub)</span>
                             </button>

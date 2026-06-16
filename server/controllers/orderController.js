@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Wallet from '../models/Wallet.js';
 import Pricing from '../models/Pricing.js';
 import Service from '../models/Service.js';
+import axios from 'axios';
 import Coupon from '../models/Coupon.js';
 import ShopSettings from '../models/ShopSettings.js';
 import Razorpay from 'razorpay';
@@ -652,8 +653,8 @@ export const generateThermalBillPDF = async (req, res) => {
 
         const shop = await ShopSettings.findOne() || {
             "name": "AnbuDigital",
-            "address": "Bengaluru Main Road, Theruvalluvar Nagar, Chengam 606701",
-            "phone": "+91 98949 57422",
+            "address": "7QWM+5WR, East Coast Rd, Chengam, Tamil Nadu 606709",
+            "phone": "+91 7603-957422",
             "email": "support@printexpress.com",
             "tagline": "Quality at Speed"
         };
@@ -918,4 +919,31 @@ export const verifyRazorpayPayment = async (req, res) => {
 }
 
 // Stripe Webhooks Handler : /api/order/webhook
+
+// Download customer-uploaded document controller
+export const downloadCustomerFile = async (req, res) => {
+    try {
+        const { url, filename } = req.query;
+        if (!url) {
+            return res.status(400).json({ success: false, message: "File URL is required" });
+        }
+
+        // Fetch the file as a stream from Cloudinary
+        const response = await axios({
+            method: 'get',
+            url: url,
+            responseType: 'stream'
+        });
+
+        // Set attachment headers
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename || 'download')}"`);
+        res.setHeader('Content-Type', response.headers['content-type'] || 'application/octet-stream');
+
+        // Pipe the stream to response
+        response.data.pipe(res);
+    } catch (error) {
+        console.error("Error downloading file:", error);
+        res.status(500).json({ success: false, message: "Failed to download file: " + error.message });
+    }
+};
 

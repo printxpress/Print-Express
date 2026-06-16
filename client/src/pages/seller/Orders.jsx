@@ -9,6 +9,7 @@ const Orders = () => {
     const [shopSettings, setShopSettings] = useState(null);
     const [filter, setFilter] = useState('all'); // all, online
     const [editingOrder, setEditingOrder] = useState(null);
+    const [downloadingFile, setDownloadingFile] = useState({});
 
     const filteredOrders = orders.filter(o => {
         const isPos = o.files.some(f => f.fileType === 'POS Service');
@@ -223,6 +224,70 @@ const Orders = () => {
         printWindow.document.close();
     };
 
+    const handleDownloadFile = async (url, originalName) => {
+        if (!url) {
+            toast.error("File URL not found");
+            return;
+        }
+        setDownloadingFile(prev => ({ ...prev, [url]: true }));
+        try {
+            const response = await axios.get(`/api/order/download-file`, {
+                params: { url, filename: originalName },
+                responseType: 'blob'
+            });
+
+            if (response.data) {
+                const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.setAttribute('download', originalName || 'download');
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(downloadUrl);
+                toast.success(`Download started: ${originalName || 'file'}`);
+            } else {
+                throw new Error("Empty response data");
+            }
+        } catch (error) {
+            console.error("Download error:", error);
+            toast.error("Failed to download file. Please try again.");
+        } finally {
+            setDownloadingFile(prev => ({ ...prev, [url]: false }));
+        }
+    };
+
+    const handleDownloadAll = async (files) => {
+        const loadingToast = toast.loading("Preparing files for download...");
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!file.url) continue;
+                const response = await axios.get(`/api/order/download-file`, {
+                    params: { url: file.url, filename: file.originalName },
+                    responseType: 'blob'
+                });
+                
+                if (response.data) {
+                    const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.setAttribute('download', file.originalName || `file_${i + 1}`);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.URL.revokeObjectURL(downloadUrl);
+                }
+            }
+            toast.dismiss(loadingToast);
+            toast.success("All downloads started successfully! 🎉");
+        } catch (error) {
+            toast.dismiss(loadingToast);
+            console.error("Download all error:", error);
+            toast.error("Failed to download all files. Please try again.");
+        }
+    };
+
     useEffect(() => {
         fetchOrders();
     }, [])
@@ -287,9 +352,14 @@ const Orders = () => {
                                 {Array.isArray(order.printOptions) ? order.printOptions.map((opt, optIdx) => (
                                     <div key={optIdx} className="bg-slate-50/50 p-3 rounded-lg border border-slate-100 space-y-2">
                                         <div className="flex justify-between items-start">
-                                            <p className="font-bold text-xs truncate max-w-[200px]" title={order.files[optIdx]?.originalName}>
-                                                📄 {order.files[optIdx]?.originalName || `File ${optIdx + 1}`}
-                                            </p>
+                                            <div>
+                                                <p className="font-bold text-xs truncate max-w-[200px] text-slate-800" title={order.files[optIdx]?.originalName}>
+                                                    📄 {order.files[optIdx]?.originalName || `File ${optIdx + 1}`}
+                                                </p>
+                                                <p className="text-[9px] text-slate-400 font-medium mt-0.5">
+                                                    Uploaded on {new Date(order.createdAt).toLocaleDateString()} by {order.userId?.name || 'Walk-in'}
+                                                </p>
+                                            </div>
                                             <div className="flex gap-2">
                                                 <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded">
                                                     {order.fulfillment?.method || 'Standard'}
@@ -320,11 +390,37 @@ const Orders = () => {
                                                 <p className="text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">2 Pgs/Sheet</p>
                                             )}
                                         </div>
-                                        <div className="flex gap-1 pt-1">
+                                        <div className="flex gap-2 pt-1.5">
                                             {order.files[optIdx]?.url && (
                                                 <>
-                                                    <a href={order.files[optIdx].url} target="_blank" rel="noreferrer" className="px-2 py-1 bg-slate-900 text-white rounded text-[9px] font-bold hover:bg-black transition-colors whitespace-nowrap">View</a>
-                                                    <a href={order.files[optIdx].url} download={order.files[optIdx].originalName} className="px-2 py-1 bg-white rounded text-[9px] font-bold text-primary border border-primary/20 hover:bg-primary hover:text-white transition-colors">Download</a>
+                                                    <a 
+                                                        href={order.files[optIdx].url} 
+                                                        target="_blank" 
+                                                        rel="noreferrer" 
+                                                        className="px-2.5 py-1 bg-slate-950 text-white rounded text-[9px] font-bold hover:bg-black transition-colors whitespace-nowrap flex items-center gap-1 shadow-sm"
+                                                    >
+                                                        👁️ View
+                                                    </a>
+                                                    <button 
+                                                        onClick={() => handleDownloadFile(order.files[optIdx].url, order.files[optIdx].originalName)}
+                                                        disabled={downloadingFile[order.files[optIdx].url]}
+                                                        className={`px-2.5 py-1 rounded text-[9px] font-bold transition-all flex items-center gap-1 border shadow-sm ${
+                                                            downloadingFile[order.files[optIdx].url]
+                                                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                                                : 'bg-white text-primary border-primary/35 hover:bg-primary hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {downloadingFile[order.files[optIdx].url] ? (
+                                                            <>
+                                                                <span className="w-2 h-2 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></span>
+                                                                Downloading...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                📥 Download
+                                                            </>
+                                                        )}
+                                                    </button>
                                                 </>
                                             )}
                                         </div>
@@ -336,19 +432,8 @@ const Orders = () => {
                                 {order.files?.length > 1 && (
                                     <div className="pt-2">
                                         <button 
-                                            onClick={() => {
-                                                order.files.forEach((file, i) => {
-                                                   setTimeout(() => {
-                                                        const link = document.createElement('a');
-                                                        link.href = file.url;
-                                                        link.download = file.originalName || `file_${i+1}`;
-                                                        document.body.appendChild(link);
-                                                        link.click();
-                                                        document.body.removeChild(link);
-                                                   }, i * 500);
-                                                });
-                                            }}
-                                            className="w-full py-2 bg-blue-100 text-blue-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border border-blue-200"
+                                            onClick={() => handleDownloadAll(order.files)}
+                                            className="w-full py-2 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white transition-all border border-blue-200 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm"
                                         >
                                             📦 Download All ({order.files.length} Files)
                                         </button>
