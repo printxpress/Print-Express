@@ -451,6 +451,24 @@ const Orders = () => {
                                                             </>
                                                         )}
                                                     </button>
+                                                    <a 
+                                                        href={getFullUrl(order.files[optIdx].url)} 
+                                                        target="_blank" 
+                                                        rel="noreferrer" 
+                                                        className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-600 hover:text-white rounded text-[9px] font-bold transition-all whitespace-nowrap flex items-center gap-1 shadow-sm"
+                                                        title="Open raw Cloudinary resource link"
+                                                    >
+                                                        🔗 Cloudinary Link
+                                                    </a>
+                                                    <button 
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(getFullUrl(order.files[optIdx].url));
+                                                            toast.success("Cloudinary link copied! 📋");
+                                                        }}
+                                                        className="px-2.5 py-1 bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-200 rounded text-[9px] font-bold transition-all whitespace-nowrap flex items-center gap-1 shadow-sm"
+                                                    >
+                                                        📋 Copy
+                                                    </button>
                                                 </>
                                             )}
                                         </div>
