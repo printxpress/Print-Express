@@ -1,8 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAppContext } from '../context/AppContext';
 
 const Footer = () => {
     const currentYear = new Date().getFullYear();
+    const { shopSettings } = useAppContext();
 
     return (
         <footer className="mt-24 py-8 border-t border-blue-100 bg-white">
@@ -13,7 +15,7 @@ const Footer = () => {
                     <div className="flex gap-8">
                         <NavLink to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</NavLink>
                         <NavLink to="/terms" className="hover:text-primary transition-colors">Terms of Service</NavLink>
-                        <a href="https://wa.me/917603957422" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1">
+                        <a href={`https://wa.me/${shopSettings?.whatsapp || '917603957422'}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1">
                             <span className="text-sm">💬</span> Support
                         </a>
                         <a href="mailto:support@printexpress.in" className="hover:text-primary transition-colors">Contact</a>

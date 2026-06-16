@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
 
 const Profile = () => {
-    const { axios, user, setUser, setShowUserLogin } = useAppContext();
+    const { axios, user, setUser, setShowUserLogin, shopSettings } = useAppContext();
     const [loading, setLoading] = useState(false);
     const [queries, setQueries] = useState([]);
     const [rechargeAmount, setRechargeAmount] = useState(10);
@@ -440,7 +440,7 @@ const Profile = () => {
 
                         <div className="pt-4 border-t border-slate-100">
                             <a 
-                                href="https://wa.me/917603957422?text=Hello,%20I%20need%20support%20with%20my%20account/order." 
+                                href={`https://wa.me/${shopSettings?.whatsapp || '917603957422'}?text=Hello,%20I%20need%20support%20with%20my%20account/order.`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="w-full py-3 bg-[#25D366] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#128C7E] transition-all shadow-lg flex items-center justify-center gap-2"
