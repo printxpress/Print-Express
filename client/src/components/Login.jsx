@@ -59,10 +59,11 @@ const Login = () => {
                 // AUTO APPLY LOGIC: If server returns OTP (Dev/Demo mode)
                 if (data.otp) {
                     setOtp(data.otp);
-                    // Small delay to show the OTP being applied
+                    // Generate a random delay between 5 to 8 seconds
+                    const delay = Math.floor(Math.random() * (8000 - 5000 + 1)) + 5000;
                     setTimeout(() => {
                         handleVerifyOtp(null, data.otp);
-                    }, 1000);
+                    }, delay);
                 }
             } else {
                 toast.error(data.message);
