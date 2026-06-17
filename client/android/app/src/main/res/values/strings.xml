@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Print Express</string>
+    <string name="title_activity_main">Print Express</string>
+    <string name="package_name">in.printexpress.app</string>
+    <string name="custom_url_scheme">in.printexpress.app</string>
+</resources>
