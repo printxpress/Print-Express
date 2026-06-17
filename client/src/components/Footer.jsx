@@ -18,7 +18,9 @@ const Footer = () => {
                         <a href={`https://wa.me/${shopSettings?.whatsapp || '917603957422'}`} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors flex items-center gap-1">
                             <span className="text-sm">💬</span> WhatsApp: +{shopSettings?.whatsapp || '917603957422'}
                         </a>
-                        <a href="mailto:support@printexpress.in" className="hover:text-primary transition-colors">Contact</a>
+                        <a href={`tel:+${shopSettings?.whatsapp || '917603957422'}`} className="hover:text-primary transition-colors flex items-center gap-1">
+                            <span className="text-sm">📞</span> Call: +{shopSettings?.whatsapp || '917603957422'}
+                        </a>
                     </div>
                 </div>
             </div>
