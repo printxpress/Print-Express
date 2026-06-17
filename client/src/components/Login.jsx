@@ -217,39 +217,19 @@ const Login = () => {
                                 </button>
                             </form>
                         ) : (
-                            <form onSubmit={handleVerifyOtp} className="space-y-5">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center block">Enter 6-Digit OTP</label>
-                                    <input
-                                        onChange={(e) => setOtp(e.target.value)}
-                                        value={otp}
-                                        placeholder="000000"
-                                        className={`input-field text-center tracking-[0.5em] font-black text-2xl py-4 transition-all ${otp ? 'border-blue-500 bg-blue-50' : ''}`}
-                                        type="text"
-                                        maxLength={6}
-                                        required
-                                    />
-                                </div>
-                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col items-center gap-1">
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Terminal Locked To</p>
-                                    <p className="text-sm font-black text-slate-900 font-mono tracking-tight">{phone}</p>
-                                    <button type="button" onClick={() => setStep('phone')} className="text-[10px] text-blue-600 font-black uppercase tracking-tighter hover:underline mt-1">Change Number</button>
-                                </div>
-
-                                <button
-                                    disabled={loading}
-                                    className="btn-primary w-full py-4 font-bold shadow-xl shadow-blue-100"
-                                >
-                                    {loading ? 'Authenticating...' : 'Confirm Login ⚡'}
-                                </button>
-
-                                {otp && (
-                                    <div className="flex items-center justify-center gap-2">
-                                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                                        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Auto-Applying OTP...</span>
+                            <div className="space-y-6 py-6 text-center">
+                                <div className="flex flex-col items-center justify-center gap-4">
+                                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="space-y-1">
+                                        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">OTP Received ⚡</h3>
+                                        <p className="text-xs text-slate-500">Confirming and proceeding login...</p>
                                     </div>
-                                )}
-                            </form>
+                                </div>
+                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col items-center gap-1 w-full max-w-xs mx-auto">
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Phone Number</p>
+                                    <p className="text-sm font-black text-slate-900 font-mono tracking-tight">{phone}</p>
+                                </div>
+                            </div>
                         )
                     ) : (
                         <form onSubmit={handleStaffLogin} className="space-y-4">
