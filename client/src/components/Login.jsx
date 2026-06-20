@@ -92,6 +92,7 @@ const Login = () => {
                 referralCode: referralCode || undefined
             });
             if (data.success) {
+                if (data.token) localStorage.setItem('token', data.token);
                 setUser(data.user);
                 setShowUserLogin(false);
                 toast.success(isRegister ? 'Registered successfully' : 'Logged in successfully');
@@ -118,6 +119,7 @@ const Login = () => {
         try {
             const { data } = await axios.post('/api/seller/login', { email, password });
             if (data.success) {
+                if (data.token) localStorage.setItem('sellerToken', data.token);
                 setIsSeller(true);
                 setSellerRole(data.role);
                 setShowUserLogin(false);

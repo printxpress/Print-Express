@@ -35,7 +35,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 4000;
 
-// Trust Proxy for Rate Limiting (Vercel/Railway/Load Balancers)
+// Trust Proxy for Rate Limiting (Vercel/Load Balancers)
 app.set('trust proxy', 1);
 
 await connectDB()
@@ -51,7 +51,6 @@ const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:5175',
-    'https://printexpress.up.railway.app',
     'https://printexpress.in',
     'https://www.printexpress.in'
 ].filter(Boolean);

@@ -22,11 +22,11 @@ export const sellerLogin = async (req, res) => {
                 const token = jwt.sign({ id: mockUser._id, role: mockUser.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
                 res.cookie('sellerToken', token, {
                     httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+                    secure: true,
+                    sameSite: 'none',
                     maxAge: 7 * 24 * 60 * 60 * 1000,
                 });
-                return res.json({ success: true, message: "Logged In (Mock Mode)", role: mockUser.role });
+                return res.json({ success: true, message: "Logged In (Mock Mode)", role: mockUser.role, token });
             } else {
                 return res.json({ success: false, message: "Invalid credentials (Mock Mode)" });
             }
@@ -51,12 +51,12 @@ export const sellerLogin = async (req, res) => {
 
         res.cookie('sellerToken', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+            secure: true,
+            sameSite: 'none',
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        return res.json({ success: true, message: "Logged In", role: user.role });
+        return res.json({ success: true, message: "Logged In", role: user.role, token });
 
     } catch (error) {
         console.log(error.message);

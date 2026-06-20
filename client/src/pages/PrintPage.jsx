@@ -366,6 +366,16 @@ const PrintPage = () => {
 
     const handleFileChange = async (e) => {
         const uploaded = Array.from(e.target.files);
+
+        // Calculate total size
+        const totalSize = uploaded.reduce((sum, f) => sum + f.size, 0) + files.reduce((sum, f) => sum + f.size, 0);
+        const MAX_VERCEL_SIZE = 4.5 * 1024 * 1024; // 4.5MB Vercel Limit
+
+        if (totalSize > MAX_VERCEL_SIZE) {
+            toast.error("Total file size exceeds 4.5MB. Please upload fewer or smaller files to comply with server limits.", { duration: 5000 });
+            return;
+        }
+
         setProcessingFiles(true);
         const validFiles = [];
         const metadata = [];

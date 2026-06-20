@@ -108,14 +108,14 @@ export const verifyOtp = async (req, res) => {
 
         res.cookie('token', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
+            secure: true,
+            sameSite: 'none',
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
         const isProfileComplete = !!(user.name);
 
-        return res.json({ success: true, user, isProfileComplete });
+        return res.json({ success: true, user, token, isProfileComplete });
     } catch (error) {
         console.log(error.message);
         res.json({ success: false, message: error.message });
