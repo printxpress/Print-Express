@@ -4,11 +4,7 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="00453fee-6232-4ecd-80ad-bf5d1f95b9bb" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/client/android/app/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/client/android/app/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/pages/PrintPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/pages/PrintPage.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-    </list>
+    <list default="true" id="00453fee-6232-4ecd-80ad-bf5d1f95b9bb" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
