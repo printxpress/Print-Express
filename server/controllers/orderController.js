@@ -821,47 +821,45 @@ export const generateThermalBillPDF = async (req, res) => {
         doc.moveTo(50, currentY).lineTo(550, currentY).strokeColor(borderColor).stroke();
 
         // --- SUMMARY SECTION ---
-        currentY += 20;
+        currentY += 15;
         const summaryX = 350;
 
-        doc.fontSize(10).fillColor(secondaryColor);
+        doc.fontSize(9).fillColor(secondaryColor);
         doc.text('Subtotal:', summaryX, currentY);
         doc.font('Helvetica-Bold').text(`Rs. ${(order.pricing.printingCharge + order.pricing.bindingCharge).toFixed(2)}`, 460, currentY, { width: 80, align: 'right' }).font('Helvetica');
 
-        currentY += 20;
+        currentY += 15;
         doc.text('Delivery Charge:', summaryX, currentY);
         doc.font('Helvetica-Bold').text(`Rs. ${order.pricing.deliveryCharge.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' }).font('Helvetica');
 
         if (order.pricing.couponDiscount > 0) {
-            currentY += 20;
+            currentY += 15;
             doc.fillColor('#ea580c').text('Coupon Discount:', summaryX, currentY);
             doc.text(`-Rs. ${order.pricing.couponDiscount.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
         }
 
         if (order.pricing.walletUsed > 0) {
-            currentY += 20;
+            currentY += 15;
             doc.fillColor(primaryColor).text('Wallet Used:', summaryX, currentY);
             doc.text(`-Rs. ${order.pricing.walletUsed.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
         }
 
         // Total Amount Highlight
-        currentY += 30;
-        doc.rect(340, currentY - 10, 220, 40).fill(primaryColor);
-        doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(14);
-        doc.text('TOTAL AMOUNT:', 350, currentY);
-        doc.text(`Rs. ${order.pricing.totalAmount.toFixed(2)}`, 460, currentY, { width: 80, align: 'right' });
+        currentY += 25;
+        doc.rect(340, currentY - 8, 220, 36).fill(primaryColor);
+        doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(13);
+        doc.text('TOTAL AMOUNT:', 350, currentY + 4);
+        doc.text(`Rs. ${order.pricing.totalAmount.toFixed(2)}`, 460, currentY + 4, { width: 80, align: 'right' });
 
         // --- FOOTER SECTION ---
-        const footerY = 740;
-        doc.moveTo(50, footerY - 20).lineTo(550, footerY - 20).strokeColor(borderColor).stroke();
+        const footerY = 745;
+        doc.moveTo(50, footerY - 10).lineTo(550, footerY - 10).strokeColor(borderColor).stroke();
         
-        doc.fillColor(secondaryColor).fontSize(10).font('Helvetica-Bold').text(shop.tagline, 50, footerY, { align: 'center', width: 500 });
+        doc.fillColor(secondaryColor).fontSize(9).font('Helvetica-Bold').text(shop.tagline, 50, footerY, { align: 'center', width: 500 });
         doc.fontSize(8).font('Helvetica').fillColor('#64748b');
-        doc.text('This is a computer-generated invoice and does not require a physical signature.', 50, footerY + 15, { align: 'center', width: 500 });
-        doc.moveDown(0.5);
-        doc.fillColor(primaryColor).text('www.printexpress.in', { align: 'center', width: 500, link: 'https://printexpress.in' });
-        doc.moveDown(0.5);
-        doc.fillColor('#64748b').text('Thank you for choosing Print Express!', { align: 'center', width: 500 });
+        doc.text('This is a computer-generated invoice and does not require a physical signature.', 50, footerY + 14, { align: 'center', width: 500 });
+        doc.fillColor(primaryColor).text('www.printexpress.in', 50, footerY + 26, { align: 'center', width: 500, link: 'https://printexpress.in' });
+        doc.fillColor('#64748b').text('Thank you for choosing Print Express!', 50, footerY + 38, { align: 'center', width: 500 });
 
         doc.end();
     } catch (error) {
