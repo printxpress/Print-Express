@@ -52,7 +52,7 @@ const MyOrders = () => {
     }
 
     const trackOnWA = (order) => {
-        const supportPhone = "+919876543210"; // Print Express Support
+        const supportPhone = shop?.whatsapp || "917603957422"; // Print Express Support
         const message = `Hello Print Express! I'd like to track my order #${order._id.toString().slice(-8).toUpperCase()}. It is currently ${order.status.toUpperCase()}.`;
         window.open(`https://wa.me/${supportPhone}?text=${encodeURIComponent(message)}`, '_blank');
     }
@@ -211,7 +211,13 @@ const MyOrders = () => {
                                     >
                                         Download Invoice
                                     </button>
-                                    <button onClick={() => trackOnWA(order)} className="btn-primary flex-1 md:flex-none py-3 px-6 text-sm flex items-center justify-center gap-2">
+                                    <a 
+                                        href={`tel:${shop?.phone || shop?.whatsapp || '917603957422'}`} 
+                                        className="btn-outline border-green-600 text-green-600 hover:bg-green-50/50 flex-1 md:flex-none py-3 px-6 text-sm flex items-center justify-center gap-2 font-bold transition-colors"
+                                    >
+                                        📞 Call Support
+                                    </a>
+                                    <button onClick={() => trackOnWA(order)} className="btn-primary flex-1 md:flex-none py-3 px-6 text-sm flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 border-none">
                                         <span>Track on WA</span>
                                         <span className="bg-white/20 p-0.5 rounded-full text-white">💬</span>
                                     </button>

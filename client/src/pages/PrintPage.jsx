@@ -367,14 +367,6 @@ const PrintPage = () => {
     const handleFileChange = async (e) => {
         const uploaded = Array.from(e.target.files);
 
-        // Calculate total size
-        const totalSize = uploaded.reduce((sum, f) => sum + f.size, 0) + files.reduce((sum, f) => sum + f.size, 0);
-        const MAX_VERCEL_SIZE = 4.5 * 1024 * 1024; // 4.5MB Vercel Limit
-
-        if (totalSize > MAX_VERCEL_SIZE) {
-            toast.error("Total file size exceeds 4.5MB. Please upload fewer or smaller files to comply with server limits.", { duration: 5000 });
-            return;
-        }
 
         setProcessingFiles(true);
         const validFiles = [];
@@ -1447,12 +1439,18 @@ const PrintPage = () => {
                                     <p className="font-bold text-green-800">📍 Pickup Location</p>
                                     <p className="text-sm text-green-700">{shopSettings?.name || "Print Express Store"}</p>
                                     <p className="text-xs text-green-600">{shopSettings?.address || "Coimbatore, Tamil Nadu"}</p>
-                                    {shopSettings?.locationUrl && (
-                                        <a href={shopSettings.locationUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline font-bold block mt-1">
-                                            View on Map
+                                    <p className="text-xs text-green-700 font-bold">📞 Mobile: {shopSettings?.phone || shopSettings?.whatsapp || "917603957422"}</p>
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                        {shopSettings?.locationUrl && (
+                                            <a href={shopSettings.locationUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center gap-1">
+                                                🗺️ View on Map
+                                            </a>
+                                        )}
+                                        <a href={`tel:${shopSettings?.phone || shopSettings?.whatsapp || '917603957422'}`} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors flex items-center gap-1">
+                                            📞 Call Store
                                         </a>
-                                    )}
-                                    <p className="text-xs text-text-muted mt-2">You will receive a notification when your order is ready for pickup.</p>
+                                    </div>
+                                    <p className="text-xs text-text-muted mt-2 pt-1 border-t border-green-100/50">You will receive a notification when your order is ready for pickup.</p>
                                 </div>
                             )}
                             <div className="flex gap-4 pt-4">
