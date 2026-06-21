@@ -37,7 +37,7 @@ const Cart = () => {
         }
     }
     
-    const finalTotalAmount = totalAmount - walletUsed;
+    const finalTotalAmount = Math.round((totalAmount - walletUsed) * 100) / 100;
 
     const placeOrder = async (isPaidViaRazorpay = false) => {
         try {
@@ -69,24 +69,26 @@ const Cart = () => {
                     if (razorpayData.success) {
                         if (!window.Razorpay) {
                             console.error("Razorpay script (window.Razorpay) is missing!");
-                            return toast.error("Razorpay script not loaded. Please refresh.")
+                            return toast.error("Razorpay SDK not loaded. Please check your internet and refresh.")
                         }
 
-                        console.log("Initializing Razorpay with Key:", import.meta.env.VITE_RAZORPAY_KEY_ID);
+                        console.log("Initializing Razorpay with OrderID:", razorpayData.razorpayOrder.id);
                         const options = {
-                            key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+                            key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_T3tWMtJXYNqDE1',
                             amount: razorpayData.razorpayOrder.amount,
                             currency: razorpayData.razorpayOrder.currency,
                             name: "Print Express",
-                            description: "Product Purchase",
+                            description: "Order Payment",
                             order_id: razorpayData.razorpayOrder.id,
                             handler: async (response) => {
+                                const loadingVerify = toast.loading("Verifying payment...");
                                 try {
                                     const { data: verifyData } = await axios.post('/api/order/razorpay-verify', {
                                         ...response,
                                         orderId
                                     });
 
+                                    toast.dismiss(loadingVerify);
                                     if (verifyData.success) {
                                         toast.success("Payment successful! Order placed. 🎉")
                                         setCartItems({})
@@ -95,6 +97,7 @@ const Cart = () => {
                                         toast.error(verifyData.message || "Payment verification failed")
                                     }
                                 } catch (error) {
+                                    toast.dismiss(loadingVerify);
                                     toast.error("Payment verification error")
                                 }
                             },
@@ -108,15 +111,18 @@ const Cart = () => {
                             },
                             modal: {
                                 ondismiss: function () {
-                                    // Optional: logic when modal is closed
+                                    // Handle modal close
                                 }
                             }
                         };
 
                         const rzp = new window.Razorpay(options);
+                        rzp.on('payment.failed', function (response) {
+                            toast.error(response.error.description || "Payment failed");
+                        });
                         rzp.open();
                     } else {
-                        toast.error("Could not initiate payment")
+                        toast.error(razorpayData.message || "Could not initiate payment")
                     }
                 } else {
                     // Paid via Wallet or amount is 0

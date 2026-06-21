@@ -9,6 +9,7 @@ import {
     cleanupOldFiles,
     updateOrderAndRecalculate,
     generateThermalBillPDF,
+    generateRazorpayLink,
     createRazorpayOrder,
     verifyRazorpayPayment,
     downloadCustomerFile
@@ -27,6 +28,7 @@ orderRouter.get('/all', authSeller, getAllOrders);
 orderRouter.post('/update-status', authSeller, updateOrderStatus);
 orderRouter.post('/edit/:orderId', authSeller, updateOrderAndRecalculate);
 orderRouter.get('/thermal-bill/:orderId', generateThermalBillPDF);
+orderRouter.post('/payment-link/:orderId', authUser, generateRazorpayLink);
 orderRouter.get('/download-file', authSeller, downloadCustomerFile);
 orderRouter.delete('/cleanup', authSeller, cleanupOldFiles);
 

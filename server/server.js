@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import './polyfill.js';
 import cookieParser from 'cookie-parser';
 import express from 'express';
@@ -8,7 +9,6 @@ import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
 import hpp from 'hpp';
 import connectDB from './configs/db.js';
-import 'dotenv/config';
 import userRouter from './routes/userRoute.js';
 import sellerRouter from './routes/sellerRoute.js';
 import connectCloudinary from './configs/cloudinary.js';

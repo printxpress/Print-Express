@@ -312,7 +312,7 @@ const PrintPage = () => {
             }
         }
         
-        const total = afterDiscounts - walletUsed;
+        const total = Math.round((afterDiscounts - walletUsed) * 100) / 100;
 
         setDocumentPrices(prices);
         setPricing({
@@ -436,7 +436,7 @@ const PrintPage = () => {
             // 1. Upload files directly to Cloudinary (Bypassing Vercel 413 limit)
             const uploadedFileUrls = await Promise.all(
                 files.map(async (file, index) => {
-                    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'daqjcwsnn';
+                    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dj6eyq4iz';
                     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'printexpress';
 
                     const formData = new FormData();
@@ -452,7 +452,11 @@ const PrintPage = () => {
 
                     if (!response.ok || !result.secure_url) {
                         console.error("Cloudinary Error:", result);
-                        throw new Error(result.error?.message || "File upload failed");
+                        let msg = result.error?.message || "File upload failed";
+                        if (msg.toLowerCase().includes("upload preset")) {
+                            msg = `Cloudinary Upload Preset '${uploadPreset}' not found. Please ensure you have created an 'Unsigned' Upload Preset named '${uploadPreset}' in your Cloudinary Settings (Settings > Upload > Upload presets).`;
+                        }
+                        throw new Error(msg);
                     }
 
                     const meta = fileMetadata[index];
@@ -493,8 +497,14 @@ const PrintPage = () => {
                     });
 
                     if (razorpayData.success) {
+                        if (!window.Razorpay) {
+                            toast.error("Razorpay SDK not loaded. Please wait a moment.");
+                            setLoading(false);
+                            return;
+                        }
+
                         const rzpOptions = {
-                            key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+                            key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_T3tWMtJXYNqDE1',
                             amount: razorpayData.razorpayOrder.amount,
                             currency: "INR",
                             name: "Print Express",
@@ -525,9 +535,6 @@ const PrintPage = () => {
                                 email: user.email || "customer@printexpress.in",
                                 contact: user.phone || delivery.phone
                             },
-                            notes: {
-                                order_id: orderId
-                            },
                             theme: {
                                 color: "#2563eb"
                             },
@@ -538,9 +545,13 @@ const PrintPage = () => {
                             }
                         };
                         const rzp = new window.Razorpay(rzpOptions);
+                        rzp.on('payment.failed', function (response) {
+                            toast.error(response.error.description || "Payment failed");
+                            setLoading(false);
+                        });
                         rzp.open();
                     } else {
-                        toast.error("Could not initiate payment");
+                        toast.error(razorpayData.message || "Could not initiate payment");
                         setLoading(false);
                     }
                 } else {

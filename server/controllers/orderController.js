@@ -6,15 +6,25 @@ import Service from '../models/Service.js';
 import axios from 'axios';
 import Coupon from '../models/Coupon.js';
 import ShopSettings from '../models/ShopSettings.js';
-import Razorpay from 'razorpay';
+import RazorpayPkg from 'razorpay';
+const Razorpay = RazorpayPkg.default || RazorpayPkg;
 import crypto from 'crypto';
 import Counter from '../models/Counter.js';
 import { v2 as cloudinary } from 'cloudinary';
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Helper to get Razorpay instance
+const getRazorpayInstance = () => {
+    const key_id = process.env.RAZORPAY_KEY_ID?.trim().replace(/['"]/g, '');
+    const key_secret = process.env.RAZORPAY_KEY_SECRET?.trim().replace(/['"]/g, '');
+
+    if (!key_id || !key_secret) {
+        throw new Error("Razorpay API keys are missing in server environment. Please check your Vercel/Environment settings.");
+    }
+    return new Razorpay({
+        key_id,
+        key_secret,
+    });
+};
 
 // ... existing imports ...
 import PDFDocument from 'pdfkit';
@@ -665,8 +675,48 @@ export const updateOrderAndRecalculate = async (req, res) => {
     }
 }
 
-// Generate Stripe Payment Link for Order Payment : /api/order/payment-link/:orderId
+// Generate Razorpay Payment Link for Order Payment : /api/order/payment-link/:orderId
+export const generateRazorpayLink = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const order = await Order.findById(orderId).populate('userId');
 
+        if (!order) return res.json({ success: false, message: "Order not found" });
+        if (order.payment.isPaid) return res.json({ success: false, message: "Order already paid" });
+
+        const amount = Math.round(order.pricing.totalAmount * 100); // in paise
+
+        // For mobile/intent, it's often better to return an order_id and use standard checkout
+        // but if the frontend expects a URL, we create a Payment Link
+        const paymentLink = await getRazorpayInstance().paymentLink.create({
+            amount,
+            currency: "INR",
+            accept_partial: false,
+            first_payment_min_amount: amount,
+            description: `Payment for Print Express Order #${order.displayId || orderId.slice(-6)}`,
+            customer: {
+                name: order.userId?.name || "Customer",
+                email: order.userId?.email || "customer@printexpress.in",
+                contact: order.userId?.phone || ""
+            },
+            notify: {
+                sms: true,
+                email: true
+            },
+            reminder_enable: true,
+            notes: {
+                order_id: orderId
+            },
+            callback_url: `${process.env.VITE_FRONTEND_URL || 'https://print-express-ve.vercel.app'}/order-success?orderId=${orderId}`,
+            callback_method: 'get'
+        });
+
+        res.json({ success: true, paymentUrl: paymentLink.short_url });
+    } catch (error) {
+        console.error("Payment Link Error:", error);
+        res.json({ success: false, message: error.message });
+    }
+}
 
 // Generate Thermal Bill PDF : /api/order/thermal-bill/:orderId
 export const generateThermalBillPDF = async (req, res) => {
@@ -888,10 +938,18 @@ export const updateOrderStatus = async (req, res) => {
 // Generate Razorpay Order : /api/order/razorpay-order
 export const createRazorpayOrder = async (req, res) => {
     try {
-        const { amount } = req.body;
+        let { amount } = req.body;
 
-        if (!amount || amount <= 0) {
-            return res.json({ success: false, message: "Invalid amount" });
+        // Ensure amount is a valid number
+        amount = parseFloat(amount);
+
+        if (isNaN(amount) || amount <= 0) {
+            return res.json({ success: false, message: "Invalid payment amount. Must be greater than 0." });
+        }
+
+        // Razorpay minimum amount is 1 INR (100 paise)
+        if (amount < 1) {
+            return res.json({ success: false, message: "Minimum payment amount is ₹1" });
         }
 
         const options = {
@@ -900,12 +958,14 @@ export const createRazorpayOrder = async (req, res) => {
             receipt: `receipt_${Date.now()}`
         };
 
-        const razorpayOrder = await razorpay.orders.create(options);
+        const instance = getRazorpayInstance();
+        const razorpayOrder = await instance.orders.create(options);
+
         console.log("SUCCESS: Razorpay Order Created:", razorpayOrder.id);
         res.json({ success: true, razorpayOrder });
     } catch (error) {
         console.error("ERROR: Razorpay Order Creation Failed:", error);
-        res.json({ success: false, message: error.message });
+        res.json({ success: false, message: error.message || "Failed to create Razorpay order" });
     }
 }
 
@@ -916,8 +976,9 @@ export const verifyRazorpayPayment = async (req, res) => {
         console.log("Verifying Razorpay Payment. OrderID:", orderId, "RP OrderID:", razorpay_order_id);
 
         const body = razorpay_order_id + "|" + razorpay_payment_id;
+        const key_secret = process.env.RAZORPAY_KEY_SECRET?.trim().replace(/['"]/g, '');
         const expectedSignature = crypto
-            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+            .createHmac("sha256", key_secret)
             .update(body.toString())
             .digest("hex");
 

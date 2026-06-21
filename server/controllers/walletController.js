@@ -3,10 +3,16 @@ import User from '../models/User.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Helper to get Razorpay instance
+const getRazorpayInstance = () => {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        throw new Error("Razorpay API keys are missing in server environment");
+    }
+    return new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+};
 
 // Get wallet balance : GET /api/wallet/balance
 export const getBalance = async (req, res) => {
@@ -114,7 +120,7 @@ export const rechargeWallet = async (req, res) => {
             receipt: `wallet_rc_${Date.now()}`
         };
 
-        const razorpayOrder = await razorpay.orders.create(options);
+        const razorpayOrder = await getRazorpayInstance().orders.create(options);
         return res.json({ success: true, razorpayOrder });
     } catch (error) {
         res.json({ success: false, message: error.message });
