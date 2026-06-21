@@ -80,6 +80,7 @@ const Cart = () => {
                             name: "Print Express",
                             description: "Order Payment",
                             order_id: razorpayData.razorpayOrder.id,
+                            webview_intent: true,
                             handler: async (response) => {
                                 const loadingVerify = toast.loading("Verifying payment...");
                                 try {

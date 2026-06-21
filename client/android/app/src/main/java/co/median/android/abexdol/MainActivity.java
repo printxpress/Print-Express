@@ -1,40 +1,56 @@
 package co.median.android.abexdol;
 
-import android.os.Bundle;
 import android.content.Intent;
 import android.net.Uri;
-import android.webkit.WebView;
+import android.os.Bundle;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
 
 public class MainActivity extends BridgeActivity {
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // Use a post-runnable to ensure the bridge and webview are initialized
+        // Wait for the WebView to finish initializing and apply our custom client
         this.bridge.getWebView().post(new Runnable() {
             @Override
             public void run() {
-                bridge.getWebView().setWebViewClient(new BridgeWebViewClient(bridge) {
-                    @Override
-                    public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                        String url = request.getUrl().toString();
-                        if (url.startsWith("upi://") || url.startsWith("phonepe://") || url.startsWith("tez://") || url.startsWith("paytmmp://")) {
-                            try {
-                                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                view.getContext().startActivity(intent);
-                                return true;
-                            } catch (Exception e) {
-                                // Fallback or fail silently if no app can handle the intent
-                                return false;
+                MainActivity.this.bridge.getWebView().setWebViewClient(
+                    new BridgeWebViewClient(MainActivity.this.bridge) {
+                        @Override
+                        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                            String url = request.getUrl().toString();
+                            if (url.startsWith("upi://") || url.startsWith("phonepe://") || url.startsWith("tez://") || url.startsWith("paytmmp://")) {
+                                try {
+                                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                                    view.getContext().startActivity(intent);
+                                    return true;
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    return true;
+                                }
                             }
+                            return super.shouldOverrideUrlLoading(view, request);
                         }
-                        return super.shouldOverrideUrlLoading(view, request);
+
+                        @Override
+                        public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                            if (url.startsWith("upi://") || url.startsWith("phonepe://") || url.startsWith("tez://") || url.startsWith("paytmmp://")) {
+                                try {
+                                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                                    view.getContext().startActivity(intent);
+                                    return true;
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    return true;
+                                }
+                            }
+                            return super.shouldOverrideUrlLoading(view, url);
+                        }
                     }
-                });
+                );
             }
         });
     }

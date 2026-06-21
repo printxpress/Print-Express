@@ -153,6 +153,7 @@ const Profile = () => {
                     name: "Print Express Wallet",
                     description: "Add credits to your wallet",
                     order_id: data.razorpayOrder.id,
+                    webview_intent: true,
                     handler: async (response) => {
                         try {
                             const { data: verifyData } = await axios.post('/api/wallet/verify', {

@@ -510,6 +510,7 @@ const PrintPage = () => {
                             name: "Print Express",
                             description: "Printing Service - Order " + orderId.slice(-6),
                             order_id: razorpayData.razorpayOrder.id,
+                            webview_intent: true,
                             handler: async (response) => {
                                 const verifyToast = toast.loading("Verifying payment...");
                                 try {
