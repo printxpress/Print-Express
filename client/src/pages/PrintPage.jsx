@@ -444,13 +444,16 @@ const PrintPage = () => {
             // 1. Upload files directly to Cloudinary (Bypassing Vercel 413 limit)
             const uploadedFileUrls = await Promise.all(
                 files.map(async (file, index) => {
+                    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'daqjcwsnn';
+                    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'printexpress';
+
                     const formData = new FormData();
                     formData.append('file', file);
-                    formData.append('upload_preset', 'printexpress'); // Needs to be 'Unsigned' in Cloudinary Settings
+                    formData.append('upload_preset', uploadPreset); // Needs to be 'Unsigned' in Cloudinary Settings
                     formData.append('folder', 'print_orders');
 
                     const response = await fetch(
-                        `https://api.cloudinary.com/v1_1/daqjcwsnn/auto/upload`,
+                        `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
                         { method: 'POST', body: formData }
                     );
                     const result = await response.json();
