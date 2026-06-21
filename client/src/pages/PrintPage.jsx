@@ -438,11 +438,40 @@ const PrintPage = () => {
         if (fulfillment === 'delivery' && !delivery.pincode) return toast.error("Please enter pincode");
 
         setLoading(true);
+        const loadingToast = toast.loading("Preparing your order... 📦");
+
         try {
-            const formData = new FormData();
-            files.forEach(file => formData.append('files', file));
-            formData.append('data', JSON.stringify({
-                userId: user._id || user.id,
+            // 1. Upload files directly to Cloudinary (Bypassing Vercel 413 limit)
+            const uploadedFileUrls = await Promise.all(
+                files.map(async (file, index) => {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('upload_preset', 'printexpress'); // Needs to be 'Unsigned' in Cloudinary Settings
+                    formData.append('folder', 'print_orders');
+
+                    const response = await fetch(
+                        `https://api.cloudinary.com/v1_1/daqjcwsnn/auto/upload`,
+                        { method: 'POST', body: formData }
+                    );
+                    const result = await response.json();
+
+                    if (!response.ok || !result.secure_url) {
+                        console.error("Cloudinary Error:", result);
+                        throw new Error(result.error?.message || "File upload failed");
+                    }
+
+                    const meta = fileMetadata[index];
+                    return {
+                        url: result.secure_url,
+                        originalName: file.originalname || file.name,
+                        fileType: file.type,
+                        pageCount: meta ? meta.pageCount : 1
+                    };
+                })
+            );
+
+            // 2. Place Order on Backend
+            const { data } = await axios.post('/api/order/print', {
                 printOptions: documentsOptions,
                 fulfillment: {
                     method: fulfillment,
@@ -454,61 +483,55 @@ const PrintPage = () => {
                 couponCode: couponApplied?.code || '',
                 couponDiscount: pricing.couponDiscount,
                 walletUsed: pricing.walletUsed,
-                fileMetadata
-            }));
+                uploadedFiles: uploadedFileUrls // Send URLs instead of files
+            });
 
-            const { data } = await axios.post('/api/order/print', formData);
+            toast.dismiss(loadingToast);
+
             if (data.success) {
                 const orderId = data.orderId;
 
-                // Razorpay Initiation for UPI or Split Pay (UPI+Wallet)
+                // Razorpay Initiation
                 if ((paymentMethod === 'UPI' || paymentMethod === 'UPI+Wallet') && pricing.total > 0) {
                     const { data: razorpayData } = await axios.post('/api/order/razorpay-order', {
                         amount: pricing.total
                     });
 
                     if (razorpayData.success) {
-                        if (!window.Razorpay) {
-                            console.error("Razorpay script (window.Razorpay) is missing!");
-                            setLoading(false);
-                            return toast.error("Razorpay script not loaded. Please refresh.");
-                        }
-                        console.log("Initializing Razorpay with Key:", import.meta.env.VITE_RAZORPAY_KEY_ID);
                         const rzpOptions = {
                             key: import.meta.env.VITE_RAZORPAY_KEY_ID,
                             amount: razorpayData.razorpayOrder.amount,
-                            currency: razorpayData.razorpayOrder.currency,
+                            currency: "INR",
                             name: "Print Express",
-                            description: "Printing Service",
+                            description: "Printing Service - Order " + orderId.slice(-6),
                             order_id: razorpayData.razorpayOrder.id,
                             handler: async (response) => {
+                                const verifyToast = toast.loading("Verifying payment...");
                                 try {
                                     const { data: verifyData } = await axios.post('/api/order/razorpay-verify', {
                                         ...response,
                                         orderId
                                     });
 
+                                    toast.dismiss(verifyToast);
                                     if (verifyData.success) {
-                                        toast.success("Payment successful! Order placed. 🎉");
-                                        setFiles([]);
-                                        setFileMetadata([]);
-                                        setDocumentsOptions([]);
-                                        setCouponApplied(null);
-                                        setCouponCode('');
-                                        setUseWallet(false);
-                                        setStep(1);
+                                        toast.success("Order Placed Successfully! 🎉");
                                         navigate('/order-success?orderId=' + orderId);
                                     } else {
                                         toast.error(verifyData.message || "Payment verification failed");
                                     }
                                 } catch (error) {
+                                    toast.dismiss(verifyToast);
                                     toast.error("Payment verification error");
                                 }
                             },
                             prefill: {
                                 name: user.name,
-                                email: user.email,
+                                email: user.email || "customer@printexpress.in",
                                 contact: user.phone || delivery.phone
+                            },
+                            notes: {
+                                order_id: orderId
                             },
                             theme: {
                                 color: "#2563eb"
@@ -526,15 +549,7 @@ const PrintPage = () => {
                         setLoading(false);
                     }
                 } else {
-                    // Wallet only or free order
                     toast.success("Order Placed Successfully! 🎉");
-                    setFiles([]);
-                    setFileMetadata([]);
-                    setDocumentsOptions([]);
-                    setCouponApplied(null);
-                    setCouponCode('');
-                    setUseWallet(false);
-                    setStep(1);
                     navigate('/order-success?orderId=' + orderId);
                 }
             } else {
@@ -542,6 +557,7 @@ const PrintPage = () => {
                 setLoading(false);
             }
         } catch (error) {
+            toast.dismiss(loadingToast);
             console.error("Order Placement Error:", error);
             const errorMsg = error.response?.data?.message || error.message || "Error placing order";
             toast.error(errorMsg);

@@ -47,27 +47,51 @@ const calculateCustomPageCount = (range) => {
 // Place Print Order : /api/order/print
 export const placePrintOrder = async (req, res) => {
     try {
-        const { printOptions, fulfillment, deliveryDetails, paymentMethod, couponCode, couponDiscount, walletUsed, fileMetadata } = JSON.parse(req.body.data);
+        let printOptions, fulfillment, deliveryDetails, paymentMethod, couponCode, couponDiscount, walletUsed, fileMetadata, uploadedFiles;
+
+        if (req.body.data) {
+            const parsed = JSON.parse(req.body.data);
+            printOptions = parsed.printOptions;
+            fulfillment = parsed.fulfillment;
+            deliveryDetails = parsed.deliveryDetails;
+            paymentMethod = parsed.paymentMethod;
+            couponCode = parsed.couponCode;
+            couponDiscount = parsed.couponDiscount;
+            walletUsed = parsed.walletUsed;
+            fileMetadata = parsed.fileMetadata;
+        } else {
+            // Support JSON body (no FormData)
+            ({ printOptions, fulfillment, deliveryDetails, paymentMethod, couponCode, couponDiscount, walletUsed, uploadedFiles } = req.body);
+        }
+
         const userId = req.userId;
         const files = req.files;
 
-        if (!files || files.length === 0) {
-            return res.json({ success: false, message: "No files uploaded" });
+        // Determine final uploaded files
+        let finalFiles = [];
+
+        if (uploadedFiles && uploadedFiles.length > 0) {
+            // Using Direct-to-Cloudinary URLs from frontend
+            finalFiles = uploadedFiles;
+        } else if (files && files.length > 0) {
+            // Fallback: Upload files to Cloudinary from backend (might fail on Vercel > 4.5MB)
+            finalFiles = await Promise.all(
+                files.map(async (file, index) => {
+                    const result = await cloudinary.uploader.upload(file.path, { resource_type: 'auto', folder: 'print_orders' });
+                    const meta = fileMetadata ? fileMetadata.find(m => m.name === file.originalname) : null;
+                    return {
+                        url: result.secure_url,
+                        originalName: file.originalname,
+                        fileType: file.mimetype,
+                        pageCount: meta ? meta.pageCount : 1
+                    };
+                })
+            );
         }
 
-        // 1. Upload files to Cloudinary
-        const uploadedFiles = await Promise.all(
-            files.map(async (file, index) => {
-                const result = await cloudinary.uploader.upload(file.path, { resource_type: 'auto', folder: 'print_orders' });
-                const meta = fileMetadata ? fileMetadata.find(m => m.name === file.originalname) : null;
-                return {
-                    url: result.secure_url,
-                    originalName: file.originalname,
-                    fileType: file.mimetype,
-                    pageCount: meta ? meta.pageCount : 1
-                };
-            })
-        );
+        if (finalFiles.length === 0) {
+            return res.json({ success: false, message: "No files uploaded" });
+        }
 
         // 2. Fetch Pricing Rules
         const [pricingData] = await Promise.all([
@@ -96,7 +120,7 @@ export const placePrintOrder = async (req, res) => {
         let totalSheets = 0;
 
         optionsArray.forEach((opts, idx) => {
-            const file = uploadedFiles[idx] || uploadedFiles[0];
+            const file = finalFiles[idx] || finalFiles[0];
             const docPages = file.pageCount || 1;
             const totalPages = opts.pageRangeType === 'Custom'
                 ? calculateCustomPageCount(opts.customPages)
@@ -254,7 +278,7 @@ export const placePrintOrder = async (req, res) => {
         const order = await Order.create({
             userId,
             displayId,
-            files: uploadedFiles,
+            files: finalFiles,
             printOptions: optionsArray.map((opts, i) => ({ ...opts, fileIndex: i })),
             pricing: {
                 printingCharge: totalPrintingCharge,
@@ -269,7 +293,7 @@ export const placePrintOrder = async (req, res) => {
             deliveryDetails: fulfillment.method === 'pickup' ? { phone: deliveryDetails?.phone || '', address: 'PICKUP' } : deliveryDetails,
             payment: {
                 method: paymentMethod,
-                isPaid: (paymentMethod === 'UPI' && finalAmount >= 0) || (paymentMethod === 'Wallet' && finalAmount === 0) || (paymentMethod === 'UPI+Wallet' && finalAmount === 0)
+                isPaid: (paymentMethod === 'UPI' && finalAmount === 0) || (paymentMethod === 'Wallet' && finalAmount === 0) || (paymentMethod === 'UPI+Wallet' && finalAmount === 0)
             },
             couponCode: couponCode || '',
             status: 'received'
