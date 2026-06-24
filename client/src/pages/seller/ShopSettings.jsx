@@ -18,6 +18,20 @@ const ShopSettings = () => {
         referralCost: 100
     });
 
+    const [pageVisibility, setPageVisibility] = useState({
+        banners: false,
+        services: false,
+        analytics: false,
+        followups: false
+    });
+
+    useEffect(() => {
+        const saved = localStorage.getItem('adminPageVisibility');
+        if (saved) {
+            setPageVisibility(JSON.parse(saved));
+        }
+    }, []);
+
     const fetchSettings = async () => {
         try {
             const { data } = await axios.get('/api/shop/settings');
@@ -228,6 +242,35 @@ const ShopSettings = () => {
                                 📍 Reach Us
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                {/* Sidebar Page Visibility */}
+                <div className="card-premium p-8 space-y-6">
+                    <h3 className="font-bold text-lg flex items-center gap-2">👁️ Sidebar Page Visibility</h3>
+                    <p className="text-sm text-text-muted">Choose which optional pages are visible in the admin sidebar. Hidden pages can still be accessed via direct URL.</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {[
+                            { id: 'banners', name: 'Banners' },
+                            { id: 'services', name: 'Services' },
+                            { id: 'analytics', name: 'Analytics' },
+                            { id: 'followups', name: 'Follow-ups' }
+                        ].map(page => (
+                            <label key={page.id} className="flex items-center gap-4 p-4 border border-slate-100 rounded-2xl cursor-pointer hover:bg-slate-50 transition-all">
+                                <input
+                                    type="checkbox"
+                                    checked={!!pageVisibility[page.id]}
+                                    onChange={e => {
+                                        const updated = { ...pageVisibility, [page.id]: e.target.checked };
+                                        setPageVisibility(updated);
+                                        localStorage.setItem('adminPageVisibility', JSON.stringify(updated));
+                                        toast.success(`${page.name} visibility updated!`);
+                                    }}
+                                    className="w-6 h-6 rounded-lg text-slate-900 focus:ring-slate-900 border-2"
+                                />
+                                <p className="text-sm font-bold text-slate-700">{page.name}</p>
+                            </label>
+                        ))}
                     </div>
                 </div>
 

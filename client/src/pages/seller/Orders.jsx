@@ -329,7 +329,11 @@ const Orders = () => {
                     <h2 className="text-2xl font-bold font-outfit text-text-main">Manage Orders</h2>
                     <p className="text-xs text-text-muted">View and manage online print and POS sales records</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 shadow-xs mr-1">
+                        <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                        <span className="text-[10px] font-black uppercase text-blue-700 tracking-wider">Received: {orders.filter(o => o.status === 'received').length}</span>
+                    </div>
                     <button onClick={fetchOrders} className="px-4 py-2 bg-white border border-border rounded-lg text-xs font-bold hover:bg-slate-50 transition-colors">Refresh 🔄</button>
                     <button className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold">Export CSV</button>
                 </div>

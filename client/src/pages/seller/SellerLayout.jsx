@@ -8,24 +8,35 @@ const SellerLayout = () => {
 
     const { axios, navigate, sellerRole } = useAppContext();
     const [showCleanUp, setShowCleanUp] = useState(false);
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+    // Load page visibility settings from localStorage (default to hidden)
+    const visibility = (() => {
+        const saved = localStorage.getItem('adminPageVisibility');
+        return saved ? JSON.parse(saved) : { banners: false, services: false, analytics: false, followups: false };
+    })();
 
     const sidebarLinks = [
         { name: "Dashboard", path: "/seller", icon: "🏠", roles: ['admin', 'billing_manager'] },
         { name: "Print Orders", path: "/seller/orders", icon: "🖨️", roles: ['admin', 'billing_manager'] },
         { name: "Customers", path: "/seller/customers", icon: "👥", roles: ['admin', 'billing_manager'] },
-        { name: "Analytics", path: "/seller/analytics", icon: "📊", roles: ['admin'] },
-        { name: "Services", path: "/seller/services", icon: "📄", roles: ['admin'] },
+        { name: "Analytics", path: "/seller/analytics", icon: "📊", roles: ['admin'], key: 'analytics' },
+        { name: "Services", path: "/seller/services", icon: "📄", roles: ['admin'], key: 'services' },
         { name: "Rules", path: "/seller/pricing", icon: "💰", roles: ['admin'] },
         { name: "Coupons", path: "/seller/coupons", icon: "🎟️", roles: ['admin'] },
         { name: "Wallet", path: "/seller/wallet", icon: "🪙", roles: ['admin'] },
         { name: "Zones", path: "/seller/delivery", icon: "🚚", roles: ['admin', 'billing_manager'] },
-        { name: "Banners", path: "/seller/banners", icon: "🖼️", roles: ['admin'] },
+        { name: "Banners", path: "/seller/banners", icon: "🖼️", roles: ['admin'], key: 'banners' },
         { name: "Settings", path: "/seller/settings", icon: "⚙️", roles: ['admin', 'billing_manager'] },
         { name: "Referrals", path: "/seller/referrals", icon: "🤝", roles: ['admin', 'billing_manager'] },
-        { name: "Follow-ups", path: "/seller/followups", icon: "📢", roles: ['admin', 'billing_manager'] },
+        { name: "Follow-ups", path: "/seller/followups", icon: "📢", roles: ['admin', 'billing_manager'], key: 'followups' },
     ];
 
-    const filteredLinks = sidebarLinks.filter(link => !link.roles || link.roles.includes(sellerRole || 'admin'));
+    const filteredLinks = sidebarLinks.filter(link => {
+        if (link.roles && !link.roles.includes(sellerRole || 'admin')) return false;
+        if (link.key && !visibility[link.key]) return false;
+        return true;
+    });
 
     const logout = async () => {
         try {
@@ -46,10 +57,19 @@ const SellerLayout = () => {
         <div className="flex flex-col min-h-screen bg-slate-50">
             {/* Admin Header */}
             <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-border sticky top-0 z-50">
-                <Link to='/' className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">P</div>
-                    <span className="font-outfit font-bold text-xl">{sellerRole === 'billing_manager' ? 'Billing' : 'Admin'} <span className="text-primary italic">Panel</span></span>
-                </Link>
+                <div className="flex items-center">
+                    <button 
+                        onClick={() => setIsMobileOpen(!isMobileOpen)} 
+                        className="md:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors mr-3"
+                        title="Toggle Sidebar"
+                    >
+                        <span className="text-xl font-bold">☰</span>
+                    </button>
+                    <Link to='/' className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">P</div>
+                        <span className="font-outfit font-bold text-xl">{sellerRole === 'billing_manager' ? 'Billing' : 'Admin'} <span className="text-primary italic">Panel</span></span>
+                    </Link>
+                </div>
                 <div className="flex items-center gap-6">
                     <div className="text-right hidden sm:block">
                         <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">Logged in as</p>
@@ -66,11 +86,22 @@ const SellerLayout = () => {
 
             <CleanUpModal isOpen={showCleanUp} onClose={() => setShowCleanUp(false)} />
 
-            <div className="flex flex-1">
+            <div className="flex flex-1 relative">
+                {/* Mobile Sidebar Overlay */}
+                {isMobileOpen && (
+                    <div 
+                        onClick={() => setIsMobileOpen(false)} 
+                        className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-30 md:hidden"
+                    />
+                )}
+
                 {/* Sidebar */}
-                <div className="w-20 md:w-64 bg-white border-r border-border py-8 flex flex-col gap-2">
+                <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-border py-8 flex flex-col gap-2 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:w-64 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
                     {filteredLinks.map((item) => (
-                        <NavLink to={item.path} key={item.name}
+                        <NavLink 
+                            to={item.path} 
+                            key={item.name}
+                            onClick={() => setIsMobileOpen(false)}
                             className={({ isActive }) => `flex items-center py-4 px-6 gap-4 transition-all
                             ${isActive ? "bg-primary/10 text-primary border-r-4 border-primary"
                                     : "text-text-muted hover:bg-slate-50 hover:text-text-main"
@@ -78,7 +109,7 @@ const SellerLayout = () => {
                             }
                         >
                             <span className="text-2xl">{item.icon}</span>
-                            <p className="md:block hidden font-medium">{item.name}</p>
+                            <p className="font-medium">{item.name}</p>
                         </NavLink>
                     ))}
                 </div>
