@@ -444,8 +444,11 @@ const PrintPage = () => {
                     formData.append('upload_preset', uploadPreset); // Needs to be 'Unsigned' in Cloudinary Settings
                     formData.append('folder', 'print_orders');
 
+                    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+                    const uploadType = isPdf ? 'raw' : 'auto';
+
                     const response = await fetch(
-                        `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
+                        `https://api.cloudinary.com/v1_1/${cloudName}/${uploadType}/upload`,
                         { method: 'POST', body: formData }
                     );
                     const result = await response.json();

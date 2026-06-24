@@ -40,7 +40,7 @@ const ReferAndEarn = () => {
     }
 
     const referralCode = user.referralCode || 'NOTSET';
-    const referralLink = `https://printxpress.github.io/Print_Express/?ref=${referralCode}`;
+    const referralLink = `https://play.google.com/store/apps/details?id=co.median.android.abexdol&pli=1`;
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(referralLink);
@@ -50,7 +50,7 @@ const ReferAndEarn = () => {
     };
 
     const shareOnWhatsApp = () => {
-        const message = `🚀 *Exclusive Print Express Offer!* 🚀\n\nI'm using *Print Express* for high-quality printing! 🖨️\n\nUse my referral code *${referralCode}* to get *10% DISCOUNT* on every order! 💰\n\n*How it works:*\n1️⃣ Go to this link and download our app: https://printxpress.github.io/Print_Express/\n2️⃣ Login with the referral ID: *${referralCode}*\n3️⃣ Place your order and enjoy the discount!\n\nDownload now: https://printxpress.github.io/Print_Express/`;
+        const message = `🚀 *Exclusive Print Express Offer!* 🚀\n\nI'm using *Print Express* for high-quality printing! 🖨️\n\nUse my referral code *${referralCode}* to get *10% DISCOUNT* on every order! 💰\n\n*How it works:*\n1️⃣ Go to this link and download our app: https://play.google.com/store/apps/details?id=co.median.android.abexdol&pli=1\n2️⃣ Login with the referral ID: *${referralCode}*\n3️⃣ Place your order and enjoy the discount!\n\nDownload now: https://play.google.com/store/apps/details?id=co.median.android.abexdol&pli=1`;
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     };
 

@@ -6,6 +6,7 @@ import Wallet from "../models/Wallet.js";
 import Pricing from "../models/Pricing.js";
 import Coupon from "../models/Coupon.js";
 import SupportQuery from "../models/SupportQuery.js";
+import { v2 as cloudinary } from 'cloudinary';
 
 // Export All Data : GET /api/system/export
 export const exportSystemData = async (req, res) => {
@@ -38,28 +39,44 @@ export const clearSystemData = async (req, res) => {
             return res.json({ success: false, message: "Safety confirmation failed" });
         }
 
-        // 1. Delete Orders
-        await Order.deleteMany({});
+        // Find all orders that still have file URLs
+        const orders = await Order.find({
+            'files.url': { $ne: '' }
+        });
 
-        // 2. Delete non-staff Users
-        await User.deleteMany({ role: { $nin: ['admin', 'billing_manager'] } });
+        let deletedCount = 0;
 
-        // 3. Delete Wallets (since they are linked to users)
-        await Wallet.deleteMany({});
+        for (const order of orders) {
+            for (const file of order.files) {
+                if (file.url) {
+                    const isRaw = file.url.includes('/raw/upload/');
+                    const parts = file.url.split('/');
+                    const filenameWithExt = parts[parts.length - 1];
+                    const folder = parts[parts.length - 2];
+                    
+                    let publicId;
+                    if (isRaw) {
+                        publicId = `${folder}/${filenameWithExt}`;
+                    } else {
+                        const filename = filenameWithExt.split('.')[0];
+                        publicId = `${folder}/${filename}`;
+                    }
 
-        // 4. Products
-        await Product.deleteMany({});
+                    try {
+                        await cloudinary.uploader.destroy(publicId, { resource_type: isRaw ? 'raw' : 'image' });
+                    } catch (err) {
+                        console.error(`Failed to delete file ${publicId}:`, err.message);
+                    }
+                }
+            }
 
-        // 5. Pricing Rules
-        await Pricing.deleteMany({});
+            // Clear URLs in DB but keep the names and other metadata
+            const updatedFiles = order.files.map(f => ({ ...f, url: '' }));
+            await Order.findByIdAndUpdate(order._id, { files: updatedFiles });
+            deletedCount++;
+        }
 
-        // 6. Coupons
-        await Coupon.deleteMany({});
-
-        // 7. Support Queries
-        await SupportQuery.deleteMany({});
-
-        res.json({ success: true, message: "System Data Cleared (Business only)" });
+        res.json({ success: true, message: `Purged files for ${deletedCount} print orders. Customer and order records kept intact.` });
     } catch (error) {
         console.log("Cleanup Error:", error.message);
         res.json({ success: false, message: error.message });

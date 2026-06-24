@@ -87,7 +87,11 @@ export const placePrintOrder = async (req, res) => {
             // Fallback: Upload files to Cloudinary from backend (might fail on Vercel > 4.5MB)
             finalFiles = await Promise.all(
                 files.map(async (file, index) => {
-                    const result = await cloudinary.uploader.upload(file.path, { resource_type: 'auto', folder: 'print_orders' });
+                    const isPdf = file.mimetype === 'application/pdf' || file.originalname?.endsWith('.pdf');
+                    const result = await cloudinary.uploader.upload(file.path, { 
+                        resource_type: isPdf ? 'raw' : 'auto', 
+                        folder: 'print_orders' 
+                    });
                     const meta = fileMetadata ? fileMetadata.find(m => m.name === file.originalname) : null;
                     return {
                         url: result.secure_url,
@@ -518,14 +522,22 @@ export const cleanupOldFiles = async (req, res) => {
                 if (file.url) {
                     // Extract public_id from Cloudinary URL
                     // Example: https://res.cloudinary.com/demo/image/upload/v12345/folder/name.pdf
+                    // Or for raw: https://res.cloudinary.com/demo/raw/upload/v12345/folder/name.pdf
+                    const isRaw = file.url.includes('/raw/upload/');
                     const parts = file.url.split('/');
                     const filenameWithExt = parts[parts.length - 1];
-                    const filename = filenameWithExt.split('.')[0];
                     const folder = parts[parts.length - 2];
-                    const publicId = `${folder}/${filename}`;
+                    
+                    let publicId;
+                    if (isRaw) {
+                        publicId = `${folder}/${filenameWithExt}`;
+                    } else {
+                        const filename = filenameWithExt.split('.')[0];
+                        publicId = `${folder}/${filename}`;
+                    }
 
                     try {
-                        await cloudinary.uploader.destroy(publicId);
+                        await cloudinary.uploader.destroy(publicId, { resource_type: isRaw ? 'raw' : 'image' });
                     } catch (err) {
                         console.error(`Failed to delete file ${publicId}:`, err.message);
                     }
@@ -1018,19 +1030,19 @@ export const downloadCustomerFile = async (req, res) => {
             targetUrl = 'https://' + targetUrl;
         }
 
-        // Fetch the file as a stream from Cloudinary
+        // Fetch the file as an arraybuffer from Cloudinary
         const response = await axios({
             method: 'get',
             url: targetUrl,
-            responseType: 'stream'
+            responseType: 'arraybuffer'
         });
 
         // Set attachment headers
         res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename || 'download')}"`);
         res.setHeader('Content-Type', response.headers['content-type'] || 'application/octet-stream');
 
-        // Pipe the stream to response
-        response.data.pipe(res);
+        // Send the buffer directly
+        res.send(response.data);
     } catch (error) {
         console.error("Error downloading file:", error);
         res.status(500).json({ success: false, message: "Failed to download file: " + error.message });

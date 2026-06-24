@@ -160,12 +160,16 @@ const MyOrders = () => {
                                                 <span className="text-lg">📄</span>
                                                 <span className="text-xs truncate font-medium flex-1">{file.originalName}</span>
                                                 {file.url ? (
-                                                    <div className="flex gap-2">
-                                                        <a href={file.url} target="_blank" rel="noreferrer" className="bg-blue-600 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-blue-700 transition-colors">VIEW</a>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-text-muted text-[10px] font-bold">POS</span>
-                                                )}
+                                                     <div className="flex gap-2">
+                                                         <a href={file.url} target="_blank" rel="noreferrer" className="bg-blue-600 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-blue-700 transition-colors">VIEW</a>
+                                                     </div>
+                                                 ) : (
+                                                     file.fileType === 'POS Service' ? (
+                                                         <span className="text-text-muted text-[10px] font-bold">POS</span>
+                                                     ) : (
+                                                         <span className="text-red-500 text-[10px] font-semibold italic">Your document is deleted automatically</span>
+                                                     )
+                                                 )}
                                             </div>
                                         ))}
                                     </div>
