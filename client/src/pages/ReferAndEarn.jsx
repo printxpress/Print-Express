@@ -50,7 +50,7 @@ const ReferAndEarn = () => {
     };
 
     const shareOnWhatsApp = () => {
-        const message = `🚀 *Exclusive Print Express Offer!* 🚀\n\nI'm using *Print Express* for high-quality printing! 🖨️\n\nUse my referral code *${referralCode}* to get *10% DISCOUNT* on every order! 💰\n\n*How it works:*\n1️⃣ Go to this link and download our app: https://play.google.com/store/apps/details?id=co.median.android.abexdol&pli=1\n2️⃣ Login with the referral ID: *${referralCode}*\n3️⃣ Place your order and enjoy the discount!\n\nDownload now: https://play.google.com/store/apps/details?id=co.median.android.abexdol&pli=1`;
+        const message = `\u{1F680} *Exclusive Print Express Offer!* \u{1F680}\n\nI'm using *Print Express* for high-quality printing! \u{1F5A8}\u{FE0F}\n\nUse my referral code *${referralCode}* to get *10% DISCOUNT* on every order! \u{1F4B0}\n\n*How it works:*\n1\u{FE0F}\u{20E3} Go to this link and download our app: https://play.google.com/store/apps/details?id=co.median.android.abexdol&pli=1\n2\u{FE0F}\u{20E3} Login with the referral ID: *${referralCode}*\n3\u{FE0F}\u{20E3} Place your order and enjoy the discount!\n\nDownload now: https://play.google.com/store/apps/details?id=co.median.android.abexdol&pli=1`;
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     };
 
