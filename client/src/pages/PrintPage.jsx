@@ -877,6 +877,10 @@ const PrintPage = () => {
                                 {processingFiles && <span className="text-sm text-blue-600 animate-pulse">Processing...</span>}
                             </div>
 
+                            <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded-r-xl text-red-700 text-xs font-semibold">
+                                ⚠️ Note: only upload pdf documents
+                            </div>
+
                             {/* File Size Warning Box */}
                             <div className="p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-xl text-amber-900 text-sm space-y-1">
                                 <p className="font-bold flex items-center gap-2">
@@ -906,7 +910,7 @@ const PrintPage = () => {
                                 <label className="border-2 border-dashed border-purple-300 rounded-2xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:bg-purple-50 hover:border-purple-500 transition-all group">
                                     <span className="text-3xl md:text-2xl group-hover:scale-110 transition-transform">📁</span>
                                     <span className="text-[10px] md:text-[9px] font-bold text-center uppercase">All</span>
-                                    <input id="all-file-input" type="file" className="hidden" multiple onChange={handleFileChange} />
+                                    <input id="all-file-input" type="file" className="hidden" multiple accept=".pdf,image/*" onChange={handleFileChange} />
                                 </label>
                             </div>
 

@@ -60,12 +60,13 @@ export const detectDocument = async (file) => {
                 result.subType = 'Photo/Image';
             }
         }
-        // Other Files (Support "All Files")
+        // Other Files (Rejected)
         else {
             result.type = 'Other';
             result.subType = fileExtension.toUpperCase();
             result.pageCount = 1; // Default to 1 for unknown types or ask user
-            result.isValid = true;
+            result.isValid = false;
+            result.error = 'only upload pdf documents';
             // For other files, we might not know the page count accurately without specific parsers
         }
     } catch (error) {
