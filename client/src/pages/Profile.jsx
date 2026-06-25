@@ -49,14 +49,10 @@ const Profile = () => {
 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('recharge') === 'success') {
-            toast.success("Wallet recharged successfully!");
+            toast.success("Wallet recharged successfully! 🎉");
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
-        if (urlParams.get('edit') === 'true') {
-            setIsEditing(true);
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
         if (urlParams.get('edit') === 'true') {
             setIsEditing(true);
             window.history.replaceState({}, document.title, window.location.pathname);
@@ -81,7 +77,7 @@ const Profile = () => {
                                 country: 'India'
                             }
                         }));
-                        toast.success("Location detected! 📍");
+                        toast.success("Location auto-detected! 📍");
                         setErrors(prev => ({ ...prev, pincode: null }));
                     } else {
                         toast.error("Invalid Pincode");
@@ -108,7 +104,7 @@ const Profile = () => {
         let newErrors = {};
         if (!formData.name) newErrors.name = "Name is required";
         if (!formData.address.line1) newErrors.line1 = "Street address is required";
-        if (!/^\d{6}$/.test(formData.address.pincode)) newErrors.pincode = "Invalid pincode (6 digits)";
+        if (!/^\d{6}$/.test(formData.address.pincode)) newErrors.pincode = "Pincode should be exactly 6 digits";
         if (!formData.address.city) newErrors.city = "City is required";
         if (!formData.address.state) newErrors.state = "State is required";
 
@@ -119,7 +115,7 @@ const Profile = () => {
     const handleProfileUpdate = async (e) => {
         e.preventDefault();
         if (!validateForm()) {
-            toast.error("Please fix the errors before saving");
+            toast.error("Please fix errors before saving");
             return;
         }
 
@@ -127,14 +123,14 @@ const Profile = () => {
         try {
             const { data } = await axios.post('/api/user/update-profile', formData);
             if (data.success) {
-                toast.success("Profile Secured Successfully! 🚀");
+                toast.success("Profile updated successfully! 🚀");
                 setUser(data.user);
                 setIsEditing(false);
             } else {
                 toast.error(data.message);
             }
         } catch (error) {
-            toast.error("Update failed. Please try again.");
+            toast.error("Something went wrong, please try again.");
         } finally {
             setLoading(false);
         }
@@ -151,7 +147,7 @@ const Profile = () => {
                     amount: data.razorpayOrder.amount,
                     currency: data.razorpayOrder.currency,
                     name: "Print Express Wallet",
-                    description: "Add credits to your wallet",
+                    description: "Recharging Wallet Balance",
                     order_id: data.razorpayOrder.id,
                     webview_intent: true,
                     handler: async (response) => {
@@ -161,7 +157,7 @@ const Profile = () => {
                                 amount: rechargeAmount
                             });
                             if (verifyData.success) {
-                                toast.success("Wallet recharged! 🚀");
+                                toast.success("Wallet recharged successfully! 🚀");
                                 setUser(prev => ({ ...prev, walletBalance: verifyData.balance }));
                             } else {
                                 toast.error(verifyData.message);
@@ -183,7 +179,7 @@ const Profile = () => {
                 toast.error(data.message);
             }
         } catch (error) {
-            toast.error("Recharge failed");
+            toast.error("Recharge failed. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -194,7 +190,7 @@ const Profile = () => {
         try {
             const { data } = await axios.post('/api/support/create', queryForm);
             if (data.success) {
-                toast.success("Query submitted successfully");
+                toast.success("Query submitted successfully! 👍");
                 setQueryForm({ subject: '', message: '' });
                 fetchQueries();
             } else {
@@ -206,25 +202,29 @@ const Profile = () => {
         }
     };
 
-    if (!user) return <div className="min-h-screen flex items-center justify-center font-outfit text-slate-500">Authenticating...</div>;
+    if (!user) return <div className="min-h-screen flex items-center justify-center font-outfit text-slate-500">Authenticating... ⌛</div>;
 
     return (
         <div className="max-w-6xl mx-auto py-12 px-4 space-y-12 animate-in fade-in duration-700">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 border-b border-border pb-10">
-                <div className="space-y-2">
-                    <h1 className="text-5xl font-black font-outfit tracking-tight text-slate-900">Account Configuration</h1>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 border-b border-slate-100 pb-10">
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <span className="text-3xl">👋</span>
+                        <h1 className="text-4xl md:text-5xl font-black font-outfit tracking-tight text-slate-900">Welcome, {user?.name || 'User'}!</h1>
+                    </div>
                     <p className="text-slate-500 font-medium flex items-center gap-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                        Active Session: {user?.phone}
+                        <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
+                        Mobile No: {user?.phone} (Verified)
                     </p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-                    <div className="card-premium bg-slate-900 text-white p-6 min-w-[280px] relative overflow-hidden group">
+                    {/* Wallet card */}
+                    <div className="card-premium bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 min-w-[280px] relative overflow-hidden group rounded-3xl shadow-xl">
                         <div className="relative z-10 flex justify-between items-start">
                             <div className="space-y-1">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Digital Credits</p>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Wallet Balance</p>
                                 <p className="text-4xl font-black font-outfit">₹{user?.walletBalance || 0}</p>
                             </div>
                             <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl backdrop-blur-md border border-white/10">💳</div>
@@ -232,10 +232,11 @@ const Profile = () => {
                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 blur-3xl -mr-16 -mt-16 group-hover:bg-blue-600/30 transition-colors"></div>
                     </div>
 
-                    <div className="card-premium bg-indigo-950 text-white p-6 min-w-[280px] relative overflow-hidden group">
+                    {/* Refer earning card */}
+                    <div className="card-premium bg-gradient-to-br from-indigo-950 to-slate-900 text-white p-6 min-w-[280px] relative overflow-hidden group rounded-3xl shadow-xl">
                         <div className="relative z-10 flex justify-between items-start">
                             <div className="space-y-1">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">Referral Balance</p>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">Referral Earnings</p>
                                 <p className="text-4xl font-black font-outfit">₹{user?.referralBalance || 0}</p>
                             </div>
                             <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl backdrop-blur-md border border-white/10">🎁</div>
@@ -243,30 +244,34 @@ const Profile = () => {
                         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/20 blur-3xl -mr-16 -mt-16 group-hover:bg-indigo-600/30 transition-colors"></div>
                     </div>
 
-                    <div className="card-premium p-6 space-y-4 border-blue-100 bg-blue-50/30">
-                        <div className="flex items-center justify-between">
-                            <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest flex items-center gap-2">
-                                <span className="text-base text-blue-600">⚡</span> Quick Topup
-                            </p>
+                    {/* Recharge Card */}
+                    <div className="card-premium bg-gradient-to-br from-blue-950 via-slate-900 to-slate-950 text-white p-6 min-w-[280px] relative overflow-hidden group rounded-3xl shadow-xl border border-blue-900/30">
+                        <div className="relative z-10 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-400 flex items-center gap-1">
+                                    <span>⚡</span> Quick Top Up
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                {[10, 50, 100].map(amt => (
+                                    <button
+                                        key={amt}
+                                        onClick={() => setRechargeAmount(amt)}
+                                        className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${rechargeAmount === amt ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/30 scale-105' : 'bg-white/5 border-white/10 text-slate-300 hover:border-blue-500/50 hover:bg-white/10'}`}
+                                    >
+                                        ₹{amt}
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={handleRecharge}
+                                disabled={loading}
+                                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30"
+                            >
+                                {loading ? 'Processing...' : 'Add Money →'}
+                            </button>
                         </div>
-                        <div className="flex gap-2">
-                            {[10, 50, 100].map(amt => (
-                                <button
-                                    key={amt}
-                                    onClick={() => setRechargeAmount(amt)}
-                                    className={`flex-1 py-1.5 rounded-xl text-[10px] font-black border-2 transition-all ${rechargeAmount === amt ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200' : 'bg-white border-slate-200 text-slate-400 hover:border-blue-400'}`}
-                                >
-                                    ₹{amt}
-                                </button>
-                            ))}
-                        </div>
-                        <button
-                            onClick={handleRecharge}
-                            disabled={loading}
-                            className="w-full py-2 bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                            {loading ? 'Processing...' : 'Add Credits →'}
-                        </button>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 blur-3xl -mr-16 -mt-16 group-hover:bg-blue-600/20 transition-colors"></div>
                     </div>
                 </div>
             </div>
@@ -275,19 +280,19 @@ const Profile = () => {
                 {/* Main Dashboard */}
                 <div className="lg:col-span-8 space-y-10">
 
-                    {/* Security & Access Section */}
-                    <div className="card-premium p-8 space-y-8 relative overflow-hidden">
+                    {/* Profile Information */}
+                    <div className="card-premium p-8 space-y-8 relative overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
                         <div className="flex justify-between items-center relative z-10">
                             <h3 className="text-2xl font-black font-outfit flex items-center gap-3">
                                 <span className="w-1.5 h-8 bg-blue-600 rounded-full"></span>
-                                Identity & Address
+                                Profile Details & Address
                             </h3>
                             {!isEditing && (
                                 <button
                                     onClick={() => setIsEditing(true)}
                                     className="px-6 py-2 bg-slate-50 hover:bg-blue-50 text-blue-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all border border-slate-100"
                                 >
-                                    Modify Profiling
+                                    Edit Profile ✏️
                                 </button>
                             )}
                         </div>
@@ -296,17 +301,17 @@ const Profile = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 opacity-90 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <div className="space-y-6">
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Authentication Name</p>
-                                        <p className="text-lg font-bold text-slate-800">{user?.name || 'Not Configured'}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Name</p>
+                                        <p className="text-lg font-bold text-slate-800">{user?.name || 'Name not updated yet'}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Verified Email</p>
-                                        <p className="text-lg font-bold text-slate-800">{user?.email || 'No email synced'}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email Address</p>
+                                        <p className="text-lg font-bold text-slate-800">{user?.email || 'Email not linked'}</p>
                                     </div>
                                 </div>
                                 <div className="space-y-6 bg-slate-50/50 p-6 rounded-[24px] border border-slate-100">
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Primary Logistics Address</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Delivery Address</p>
                                         <p className="text-sm font-bold text-slate-800 leading-relaxed uppercase">
                                             {user?.address?.line1 ? (
                                                 <>
@@ -316,7 +321,7 @@ const Profile = () => {
                                                     {user.address.state} - {user.address.pincode} <br />
                                                     <span className="text-blue-600">{user.address.country}</span>
                                                 </>
-                                            ) : 'Address database empty'}
+                                            ) : 'Address not saved yet. Please edit your profile to add your shipping address.'}
                                         </p>
                                     </div>
                                 </div>
@@ -324,24 +329,24 @@ const Profile = () => {
                         ) : (
                             <form onSubmit={handleProfileUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in zoom-in-95 duration-500">
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">FULL LEGAL NAME</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">FULL NAME</label>
                                     <input
                                         aria-label="Full Name"
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
                                         className={`input-field ${errors.name ? 'border-red-400 bg-red-50/30' : ''}`}
-                                        placeholder="John Doe"
+                                        placeholder="Enter your full name"
                                     />
                                     {errors.name && <p className="text-[10px] text-red-500 font-bold ml-1">{errors.name}</p>}
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">EMAIL ADDRESS</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">EMAIL ADDRESS (FOR BILLING & INVOICES)</label>
                                     <input
                                         aria-label="Email"
                                         value={formData.email}
                                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                                         className={`input-field ${errors.email ? 'border-red-400 bg-red-50/30' : ''}`}
-                                        placeholder="user@example.com"
+                                        placeholder="email@example.com"
                                     />
                                     {errors.email && <p className="text-[10px] text-red-500 font-bold ml-1">{errors.email}</p>}
                                 </div>
@@ -349,27 +354,27 @@ const Profile = () => {
                                 <div className="md:col-span-2 border-t border-slate-100 pt-6 mt-2">
                                     <p className="text-xs font-black text-blue-600 mb-6 flex items-center gap-2">
                                         📦 Delivery Address
-                                        <span title="Required for calculating accurate delivery rates" className="cursor-help w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[8px]">?</span>
+                                        <span title="Pincode is necessary to calculate real-time shipping costs." className="cursor-help w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[8px]">?</span>
                                     </p>
                                 </div>
 
                                 <div className="md:col-span-2 space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">FLAT / HOUSE NO / BUILDING</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">HOUSE NO / STREET / COLONY / AREA</label>
                                     <input
                                         value={formData.address.line1}
                                         onChange={e => setFormData({ ...formData, address: { ...formData.address, line1: e.target.value } })}
                                         className={`input-field ${errors.line1 ? 'border-red-400 bg-red-50/30' : ''}`}
-                                        placeholder="Flat 101, Print Bldng, Sector 5"
+                                        placeholder="Flat/House No., Street Name, Colony Name"
                                     />
                                 </div>
 
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">PINCODE</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">PINCODE (AUTO-DETECTS LOCATION)</label>
                                     <input
                                         value={formData.address.pincode}
                                         onChange={e => setFormData({ ...formData, address: { ...formData.address, pincode: e.target.value } })}
                                         className={`input-field ${errors.pincode ? 'border-red-400 bg-red-50/30' : ''}`}
-                                        placeholder="600001"
+                                        placeholder="6-digit Pincode"
                                         maxLength={6}
                                     />
                                     {errors.pincode && <p className="text-[10px] text-red-500 font-bold ml-1">{errors.pincode}</p>}
@@ -381,7 +386,7 @@ const Profile = () => {
                                         value={formData.address.landmark}
                                         onChange={e => setFormData({ ...formData, address: { ...formData.address, landmark: e.target.value } })}
                                         className="input-field"
-                                        placeholder="Near Post Office"
+                                        placeholder="e.g. Near City Mall"
                                     />
                                 </div>
 
@@ -391,7 +396,7 @@ const Profile = () => {
                                         value={formData.address.city}
                                         onChange={e => setFormData({ ...formData, address: { ...formData.address, city: e.target.value } })}
                                         className={`input-field ${errors.city ? 'border-red-400 bg-red-50/30' : ''}`}
-                                        placeholder="Chennai"
+                                        placeholder="City / District"
                                     />
                                 </div>
 
@@ -401,7 +406,7 @@ const Profile = () => {
                                         value={formData.address.state}
                                         onChange={e => setFormData({ ...formData, address: { ...formData.address, state: e.target.value } })}
                                         className={`input-field ${errors.state ? 'border-red-400 bg-red-50/30' : ''}`}
-                                        placeholder="Tamil Nadu"
+                                        placeholder="State"
                                     />
                                 </div>
 
@@ -409,16 +414,16 @@ const Profile = () => {
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="flex-1 py-4 bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-100/50 hover:bg-black transition-all"
+                                        className="flex-1 py-4 bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-100/50 hover:bg-slate-900 transition-all"
                                     >
-                                        {loading ? 'Saving Details...' : 'SAVE DETAILS 🛡️'}
+                                        {loading ? 'Saving Details...' : 'Save Details 🛡️'}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setIsEditing(false)}
                                         className="px-8 py-4 border-2 border-slate-100 text-slate-400 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
                                     >
-                                        Abort
+                                        Cancel
                                     </button>
                                 </div>
                             </form>
@@ -428,15 +433,15 @@ const Profile = () => {
 
                 {/* Support Sidebar */}
                 <div className="lg:col-span-4 space-y-8">
-                    <div className="card-premium p-8 space-y-6 group">
+                    <div className="card-premium p-8 space-y-6 group rounded-3xl border border-slate-100 shadow-sm">
                         <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center text-4xl group-hover:rotate-12 transition-transform">🎫</div>
-                        <h3 className="text-xl font-bold font-outfit">Support Matrix</h3>
-                        <p className="text-xs text-slate-500 font-medium leading-relaxed">Encountering structural issues with your order or wallet? Open a high-priority ticket below.</p>
+                        <h3 className="text-xl font-bold font-outfit">Support Center</h3>
+                        <p className="text-xs text-slate-500 font-medium leading-relaxed">Having issues with wallet recharges or print quality? Create a ticket below and we will resolve it for you!</p>
 
                         <form onSubmit={handleQuerySubmit} className="space-y-4">
                             <input required value={queryForm.subject} onChange={e => setQueryForm({ ...queryForm, subject: e.target.value })} className="input-field text-xs font-bold" placeholder="TICKET SUBJECT" />
-                            <textarea required rows={4} value={queryForm.message} onChange={e => setQueryForm({ ...queryForm, message: e.target.value })} className="input-field text-xs font-medium resize-none" placeholder="ELABORATE YOUR QUERY..." />
-                            <button className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-lg shadow-black/10">TRANSMIT REQUEST</button>
+                            <textarea required rows={4} value={queryForm.message} onChange={e => setQueryForm({ ...queryForm, message: e.target.value })} className="input-field text-xs font-medium resize-none" placeholder="DESCRIBE YOUR QUERY IN DETAIL..." />
+                            <button className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-lg shadow-black/10">Submit Ticket</button>
                         </form>
 
                         <div className="pt-4 border-t border-slate-100">
@@ -446,15 +451,16 @@ const Profile = () => {
                                 rel="noopener noreferrer"
                                 className="w-full py-3 bg-[#25D366] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#128C7E] transition-all shadow-lg flex items-center justify-center gap-2"
                             >
-                                💬 WhatsApp Support 🔗
+                                💬 Chat on WhatsApp 🔗
                             </a>
                         </div>
                     </div>
 
-                    <div className="card-premium p-0 overflow-hidden divide-y divide-slate-50 border-slate-100">
+                    {/* Active Tickets List */}
+                    <div className="card-premium p-0 overflow-hidden divide-y divide-slate-50 border-slate-100 rounded-3xl shadow-sm border">
                         <div className="p-6 bg-slate-50/50 flex items-center justify-between">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Tickets</p>
-                            <span className="bg-blue-100 text-blue-700 text-[8px] font-black px-2 py-0.5 rounded-full">{queries.length} DEPLOYED</span>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Support Tickets</p>
+                            <span className="bg-blue-100 text-blue-700 text-[8px] font-black px-2 py-0.5 rounded-full">{queries.length} CREATED</span>
                         </div>
                         <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
                             {queries.map((q, i) => (
@@ -469,7 +475,7 @@ const Profile = () => {
                             {queries.length === 0 && (
                                 <div className="py-20 text-center space-y-2 opacity-20">
                                     <p className="text-4xl">📭</p>
-                                    <p className="text-[10px] font-black uppercase tracking-widest">Buffer Empty</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest">No support tickets created yet</p>
                                 </div>
                             )}
                         </div>

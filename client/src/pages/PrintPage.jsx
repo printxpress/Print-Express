@@ -7,6 +7,60 @@ import PrintingAnimation from '../components/PrintingAnimation';
 import { detectDocument, formatFileSize, getDocumentIcon } from '../utils/documentDetection';
 import { assets } from '../assets/assets';
 
+const compressImage = (file, maxFileSize = 10 * 1024 * 1024) => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                const maxDimension = 3000;
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                let quality = 0.8;
+                const getCompressedBlob = (q) => {
+                    canvas.toBlob((blob) => {
+                        if (!blob) {
+                            resolve(file);
+                            return;
+                        }
+                        if (blob.size > maxFileSize && q > 0.1) {
+                            getCompressedBlob(q - 0.15);
+                        } else {
+                            const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                            const compressedFile = new File([blob], `${nameWithoutExt}_compressed.jpg`, {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            });
+                            resolve(compressedFile);
+                        }
+                    }, 'image/jpeg', q);
+                };
+                getCompressedBlob(quality);
+            };
+        };
+        reader.onerror = () => resolve(file);
+    });
+};
+
 const PrintPage = () => {
     const { axios, user, services, shopSettings, pricingRules } = useAppContext();
     const [searchParams] = useSearchParams();
@@ -159,6 +213,8 @@ const PrintPage = () => {
 
     const [loading, setLoading] = useState(false);
     const [processingFiles, setProcessingFiles] = useState(false);
+    const [fileSizeErrorModal, setFileSizeErrorModal] = useState({ isOpen: false, fileName: '', fileSize: 0 });
+    const [fileUploadSuccessModal, setFileUploadSuccessModal] = useState({ isOpen: false, fileName: '', fileType: '', pageCount: 0 });
     const [pincodeLoading, setPincodeLoading] = useState(false);
     const [pincodeError, setPincodeError] = useState('');
     const [isEditingAddress, setIsEditingAddress] = useState(false); // To toggle address edit mode
@@ -372,13 +428,36 @@ const PrintPage = () => {
         const validFiles = [];
         const metadata = [];
         const newOptions = [];
-        for (const file of uploaded) {
+        for (let file of uploaded) {
+            const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name);
+            if (file.size > 10 * 1024 * 1024 && isImage) {
+                const toastId = toast.loading(`Compressing large image: ${file.name}...`);
+                file = await compressImage(file);
+                toast.dismiss(toastId);
+                if (file.size <= 10 * 1024 * 1024) {
+                    toast.success(`Compressed to ${(file.size / (1024 * 1024)).toFixed(2)} MB! 🎉`);
+                }
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                setFileSizeErrorModal({
+                    isOpen: true,
+                    fileName: file.name,
+                    fileSize: file.size
+                });
+                continue;
+            }
             const meta = await detectDocument(file);
             if (meta.isValid) {
                 validFiles.push(file);
                 metadata.push(meta);
                 newOptions.push(getDefaultOptions());
-                toast.success(`✅ ${meta.name}: ${meta.type} (${meta.pageCount} page${meta.pageCount > 1 ? 's' : ''})`);
+                setFileUploadSuccessModal({
+                    isOpen: true,
+                    fileName: meta.name,
+                    fileType: meta.type,
+                    pageCount: meta.pageCount
+                });
             } else {
                 toast.error(`❌ ${file.name}: ${meta.error}`);
             }
@@ -783,18 +862,6 @@ const PrintPage = () => {
                         </div>
                     </div>
 
-                    <div className="card-premium p-6 flex flex-col items-center text-center space-y-2 border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-white">
-                        <p className="text-sm font-bold text-orange-800">💡 Need Support?</p>
-                        <p className="text-xs text-text-muted">Confused about sides or binding? Chat with us on WhatsApp for instant assistance.</p>
-                        <a 
-                            href={`https://wa.me/${shopSettings?.whatsapp || '917603957422'}?text=Hello,%20I%20need%20support%20with%20my%20print%20order.`}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-orange-600 font-bold text-sm mt-2 flex items-center gap-2 hover:text-orange-700 transition-colors"
-                        >
-                            WhatsApp Support 🔗
-                        </a>
-                    </div>
                 </div>
 
                 {/* 2. Wizard Steps */}
@@ -808,6 +875,19 @@ const PrintPage = () => {
                                     Upload Documents
                                 </h3>
                                 {processingFiles && <span className="text-sm text-blue-600 animate-pulse">Processing...</span>}
+                            </div>
+
+                            {/* File Size Warning Box */}
+                            <div className="p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-xl text-amber-900 text-sm space-y-1">
+                                <p className="font-bold flex items-center gap-2">
+                                    ⚠️ File Size Limit: 10 MB
+                                </p>
+                                <p className="leading-relaxed">
+                                    Maximum file size: <span className="font-semibold">10 MB</span>. Please upload files under 10 MB. If your file is larger, compress it using tools like{' '}
+                                    <a href="https://tinypng.com" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-700 transition-colors">TinyPNG</a>,{' '}
+                                    <a href="https://www.ilovepdf.com" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-700 transition-colors">iLovePDF</a>, or{' '}
+                                    <a href="https://www.freeconvert.com" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-700 transition-colors">FreeConvert</a> before uploading.
+                                </p>
                             </div>
 
                             <div className="grid grid-cols-3 gap-3">
@@ -826,7 +906,7 @@ const PrintPage = () => {
                                 <label className="border-2 border-dashed border-purple-300 rounded-2xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:bg-purple-50 hover:border-purple-500 transition-all group">
                                     <span className="text-3xl md:text-2xl group-hover:scale-110 transition-transform">📁</span>
                                     <span className="text-[10px] md:text-[9px] font-bold text-center uppercase">All</span>
-                                    <input type="file" className="hidden" multiple onChange={handleFileChange} />
+                                    <input id="all-file-input" type="file" className="hidden" multiple onChange={handleFileChange} />
                                 </label>
                             </div>
 
@@ -1580,6 +1660,143 @@ const PrintPage = () => {
                     )}
                 </div>
             </div>
+
+            {/* Premium File Size Limit Modal */}
+            {fileSizeErrorModal.isOpen && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-red-500 via-orange-500 to-amber-500 p-6 text-white text-center relative">
+                            <button 
+                                onClick={() => setFileSizeErrorModal({ isOpen: false, fileName: '', fileSize: 0 })}
+                                className="absolute right-4 top-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center font-bold transition-all"
+                            >
+                                ✕
+                            </button>
+                            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-4xl mx-auto mb-3 animate-bounce">
+                                ⚠️
+                            </div>
+                            <h3 className="text-xl font-bold font-outfit">File Too Large!</h3>
+                            <p className="text-white/80 text-xs mt-1">Maximum upload size is 10 MB</p>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 space-y-4">
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1">
+                                <p className="text-xs text-text-muted font-bold uppercase tracking-wider">File Details</p>
+                                <p className="text-sm font-semibold text-slate-800 truncate">{fileSizeErrorModal.fileName}</p>
+                                <p className="text-xs text-red-600 font-bold">
+                                    Size: {(fileSizeErrorModal.fileSize / (1024 * 1024)).toFixed(2)} MB (Limit: 10 MB)
+                                </p>
+                            </div>
+
+                            <p className="text-sm text-text-muted text-center leading-relaxed">
+                                Please compress your file under 10 MB. You can use one of these free online tools to quickly compress it:
+                            </p>
+
+                            <div className="grid grid-cols-3 gap-2 pt-2">
+                                <a 
+                                    href="https://tinypng.com" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="p-3 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-2xl text-center flex flex-col items-center gap-1 transition-all group"
+                                >
+                                    <span className="text-2xl group-hover:scale-110 transition-transform">🐼</span>
+                                    <span className="text-[10px] font-bold text-blue-700">TinyPNG</span>
+                                </a>
+                                <a 
+                                    href="https://www.ilovepdf.com/compress_pdf" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="p-3 bg-red-50 hover:bg-red-100 border border-red-100 rounded-2xl text-center flex flex-col items-center gap-1 transition-all group"
+                                >
+                                    <span className="text-2xl group-hover:scale-110 transition-transform">📕</span>
+                                    <span className="text-[10px] font-bold text-red-700">iLovePDF</span>
+                                </a>
+                                <a 
+                                    href="https://www.freeconvert.com/compress-pdf" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="p-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-2xl text-center flex flex-col items-center gap-1 transition-all group"
+                                >
+                                    <span className="text-2xl group-hover:scale-110 transition-transform">⚡</span>
+                                    <span className="text-[10px] font-bold text-purple-700">FreeConvert</span>
+                                </a>
+                            </div>
+
+                            <div className="pt-4">
+                                <button 
+                                    onClick={() => setFileSizeErrorModal({ isOpen: false, fileName: '', fileSize: 0 })}
+                                    className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg hover:bg-slate-800 transition-all transform active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    Got it, let me compress 🤝
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Premium File Upload Success Modal */}
+            {fileUploadSuccessModal.isOpen && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-white text-center relative">
+                            <button 
+                                onClick={() => setFileUploadSuccessModal({ isOpen: false, fileName: '', fileType: '', pageCount: 0 })}
+                                className="absolute right-4 top-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center font-bold transition-all"
+                            >
+                                ✕
+                            </button>
+                            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-4xl mx-auto mb-3 animate-bounce">
+                                🎉
+                            </div>
+                            <h3 className="text-xl font-bold font-outfit">Upload Successful!</h3>
+                            <p className="text-white/80 text-xs mt-1">Your document has been processed</p>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 space-y-4">
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-text-muted font-bold uppercase tracking-wider">File Name</span>
+                                    <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                                        {fileUploadSuccessModal.fileType}
+                                    </span>
+                                </div>
+                                <p className="text-sm font-semibold text-slate-800 truncate">{fileUploadSuccessModal.fileName}</p>
+                                <div className="pt-2 flex justify-between items-center text-xs font-bold text-slate-600 border-t border-slate-100">
+                                    <span>Total Pages</span>
+                                    <span className="text-blue-600">{fileUploadSuccessModal.pageCount} page{fileUploadSuccessModal.pageCount !== 1 ? 's' : ''}</span>
+                                </div>
+                            </div>
+
+                            <p className="text-sm text-text-muted text-center leading-relaxed">
+                                Document is successfully loaded. You can now configure print settings (pages, binding, color, etc.) in the next step.
+                            </p>
+
+                            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                                <button 
+                                    onClick={() => {
+                                        setFileUploadSuccessModal({ isOpen: false, fileName: '', fileType: '', pageCount: 0 });
+                                        document.getElementById('all-file-input')?.click();
+                                    }}
+                                    className="flex-1 bg-slate-100 text-slate-800 hover:bg-slate-200 py-3.5 rounded-xl font-bold text-sm transition-all transform active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    📁 Add More Files
+                                </button>
+                                <button 
+                                    onClick={() => setFileUploadSuccessModal({ isOpen: false, fileName: '', fileType: '', pageCount: 0 })}
+                                    className="flex-1 bg-emerald-600 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg hover:bg-emerald-700 transition-all transform active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    Proceed 👍
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
