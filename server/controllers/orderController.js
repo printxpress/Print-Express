@@ -559,7 +559,12 @@ export const cleanupOldFiles = async (req, res) => {
 // Get All Orders (Admin) : /api/order/all
 export const getAllOrders = async (req, res) => {
     try {
-        const orders = await Order.find({}).sort({ createdAt: -1 }).populate('userId', 'name phone');
+        const orders = await Order.find({
+            $or: [
+                { 'payment.isPaid': true },
+                { 'payment.method': 'COD' }
+            ]
+        }).sort({ createdAt: -1 }).populate('userId', 'name phone');
         res.json({ success: true, orders });
     } catch (error) {
         res.json({ success: false, message: error.message });
