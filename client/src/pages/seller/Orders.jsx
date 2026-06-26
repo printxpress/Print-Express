@@ -19,11 +19,26 @@ const Orders = () => {
     const [filter, setFilter] = useState('all'); // all, online
     const [editingOrder, setEditingOrder] = useState(null);
     const [downloadingFile, setDownloadingFile] = useState({});
+    const [searchQuery, setSearchQuery] = useState('');
 
     const filteredOrders = orders.filter(o => {
         const isPos = o.files.some(f => f.fileType === 'POS Service');
         if (filter === 'online') return !isPos;
         return !isPos; // Default: hide POS
+    });
+
+    const searchedAndFilteredOrders = filteredOrders.filter(o => {
+        if (!searchQuery.trim()) return true;
+        const query = searchQuery.toLowerCase();
+        const orderId = o._id?.toString().slice(-8).toUpperCase() || '';
+        const custName = (o.userId?.name || 'Walk-in / Guest').toLowerCase();
+        const custPhone = (o.deliveryDetails?.phone || o.userId?.phone || '').toLowerCase();
+        const address = (o.deliveryDetails?.address || '').toLowerCase();
+
+        return orderId.includes(query.toUpperCase()) || 
+               custName.includes(query) || 
+               custPhone.includes(query) || 
+               address.includes(query);
     });
 
     const fetchOrders = async () => {
@@ -322,6 +337,10 @@ const Orders = () => {
         fetchOrders();
     }, [])
 
+    const receivedOrders = filteredOrders.filter(o => o.status === 'received');
+    const readyOrders = filteredOrders.filter(o => o.status === 'ready');
+    const deliveredOrders = filteredOrders.filter(o => o.status === 'delivered');
+
     return (
         <div className='space-y-8'>
             <div className="flex justify-between items-center">
@@ -330,30 +349,134 @@ const Orders = () => {
                     <p className="text-xs text-text-muted">View and manage online print and POS sales records</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 shadow-xs mr-1">
-                        <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
-                        <span className="text-[10px] font-black uppercase text-blue-700 tracking-wider">Received: {orders.filter(o => o.status === 'received').length}</span>
-                    </div>
                     <button onClick={fetchOrders} className="px-4 py-2 bg-white border border-border rounded-lg text-xs font-bold hover:bg-slate-50 transition-colors">Refresh 🔄</button>
                     <button className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold">Export CSV</button>
                 </div>
             </div>
 
-            <div className="flex gap-4 border-b border-border pb-px">
-                {['all', 'online'].map((type) => (
-                    <button
-                        key={type}
-                        onClick={() => setFilter(type)}
-                        className={`pb-4 px-2 text-sm font-bold capitalize transition-all relative ${filter === type ? 'text-primary' : 'text-text-muted hover:text-text-main'}`}
-                    >
-                        {type} Orders
-                        {filter === type && <div className="absolute bottom-0 left-0 w-full h-1 bg-primary rounded-t-full shadow-[0_-2px_8px_rgba(59,130,246,0.3)]"></div>}
-                    </button>
-                ))}
+            {/* Highlighted Status Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Received Card */}
+                <div className="group relative bg-white border border-blue-100 rounded-2xl p-5 shadow-xs flex items-center justify-between hover:shadow-md hover:border-blue-300 transition-all cursor-pointer">
+                    <div className="space-y-1">
+                        <p className="text-xs font-bold text-blue-500 uppercase tracking-wider">Received Orders</p>
+                        <p className="text-3xl font-bold font-outfit text-slate-800">{receivedOrders.length}</p>
+                    </div>
+                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-xl text-blue-500">
+                        📥
+                    </div>
+                    
+                    {/* Hover tooltip for Received */}
+                    <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute top-full left-0 mt-2 bg-slate-900 text-white shadow-xl rounded-xl p-3 z-30 max-h-48 overflow-y-auto w-66 text-left transition-all duration-200 pointer-events-none">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400 mb-2 border-b border-white/10 pb-1">Received List ({receivedOrders.length})</p>
+                        {receivedOrders.length === 0 ? (
+                            <p className="text-xs text-white/60 py-1">No orders</p>
+                        ) : (
+                            <div className="space-y-1.5 text-xs">
+                                {receivedOrders.map(o => (
+                                    <div key={o._id} className="flex justify-between gap-2 border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                                        <span className="font-mono font-bold text-white/95">#{o._id.toString().slice(-8).toUpperCase()}</span>
+                                        <span className="truncate text-white/70 max-w-[120px]">{o.userId?.name || 'Walk-in'}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Ready Card */}
+                <div className="group relative bg-white border border-purple-100 rounded-2xl p-5 shadow-xs flex items-center justify-between hover:shadow-md hover:border-purple-300 transition-all cursor-pointer">
+                    <div className="space-y-1">
+                        <p className="text-xs font-bold text-purple-500 uppercase tracking-wider">Ready Orders</p>
+                        <p className="text-3xl font-bold font-outfit text-slate-800">{readyOrders.length}</p>
+                    </div>
+                    <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-xl text-purple-500">
+                        📦
+                    </div>
+                    
+                    {/* Hover tooltip for Ready */}
+                    <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute top-full left-0 mt-2 bg-slate-900 text-white shadow-xl rounded-xl p-3 z-30 max-h-48 overflow-y-auto w-66 text-left transition-all duration-200 pointer-events-none">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400 mb-2 border-b border-white/10 pb-1">Ready List ({readyOrders.length})</p>
+                        {readyOrders.length === 0 ? (
+                            <p className="text-xs text-white/60 py-1">No orders</p>
+                        ) : (
+                            <div className="space-y-1.5 text-xs">
+                                {readyOrders.map(o => (
+                                    <div key={o._id} className="flex justify-between gap-2 border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                                        <span className="font-mono font-bold text-white/95">#{o._id.toString().slice(-8).toUpperCase()}</span>
+                                        <span className="truncate text-white/70 max-w-[120px]">{o.userId?.name || 'Walk-in'}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Delivered Card */}
+                <div className="group relative bg-white border border-green-100 rounded-2xl p-5 shadow-xs flex items-center justify-between hover:shadow-md hover:border-green-300 transition-all cursor-pointer">
+                    <div className="space-y-1">
+                        <p className="text-xs font-bold text-green-500 uppercase tracking-wider">Delivered Orders</p>
+                        <p className="text-3xl font-bold font-outfit text-slate-800">{deliveredOrders.length}</p>
+                    </div>
+                    <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-xl text-green-500">
+                        🚚
+                    </div>
+                    
+                    {/* Hover tooltip for Delivered */}
+                    <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute top-full left-0 mt-2 bg-slate-900 text-white shadow-xl rounded-xl p-3 z-30 max-h-48 overflow-y-auto w-66 text-left transition-all duration-200 pointer-events-none">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-green-400 mb-2 border-b border-white/10 pb-1">Delivered List ({deliveredOrders.length})</p>
+                        {deliveredOrders.length === 0 ? (
+                            <p className="text-xs text-white/60 py-1">No orders</p>
+                        ) : (
+                            <div className="space-y-1.5 text-xs">
+                                {deliveredOrders.map(o => (
+                                    <div key={o._id} className="flex justify-between gap-2 border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                                        <span className="font-mono font-bold text-white/95">#{o._id.toString().slice(-8).toUpperCase()}</span>
+                                        <span className="truncate text-white/70 max-w-[120px]">{o.userId?.name || 'Walk-in'}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Search Bar & Filter Options */}
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white border border-border rounded-2xl p-4">
+                <div className="relative w-full sm:max-w-md">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                    <input
+                        type="text"
+                        placeholder="Search by ID, Name, Phone, Address..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:bg-white transition-all font-medium"
+                    />
+                    {searchQuery && (
+                        <button 
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600"
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
+                <div className="flex gap-4 border-b border-border pb-px w-full sm:w-auto">
+                    {['all', 'online'].map((type) => (
+                        <button
+                            key={type}
+                            onClick={() => setFilter(type)}
+                            className={`pb-2 px-2 text-sm font-bold capitalize transition-all relative ${filter === type ? 'text-primary' : 'text-text-muted hover:text-text-main'}`}
+                        >
+                            {type} Orders
+                            {filter === type && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full shadow-[0_-2px_8px_rgba(59,130,246,0.3)]"></div>}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             <div className="space-y-4">
-                {filteredOrders.map((order, index) => (
+                {searchedAndFilteredOrders.map((order, index) => (
                     <div key={index} className="card-premium p-6 flex flex-col md:flex-row gap-8 justify-between hover:border-primary/50 transition-colors">
                         <div className="space-y-3 flex-1">
                             <div className="flex items-center gap-3">
@@ -367,16 +490,41 @@ const Orders = () => {
                                     </span>
                                 )}
                             </div>
-                            <div className="text-sm space-y-1">
-                                {order.fulfillment?.method === 'pickup' ? (
-                                    <p className="font-bold text-green-600">🏪 STORE PICKUP</p>
-                                ) : (
-                                    <>
-                                        <p className="font-bold">{order.deliveryDetails?.address || 'No Address'}</p>
-                                        <p className="text-text-muted">{order.deliveryDetails?.pincode}, {order.deliveryDetails?.district}</p>
-                                    </>
-                                )}
-                                <p className="text-primary font-bold">📞 {order.deliveryDetails?.phone || order.userId?.phone || "No Phone"}</p>
+                            <div className="text-sm space-y-2 bg-slate-50/80 p-3 rounded-xl border border-slate-100 mt-2">
+                                <p className="font-semibold text-slate-700 flex items-center gap-1.5">
+                                    <span>👤</span>
+                                    <span>Name: {order.userId?.name || 'Walk-in / Guest'}</span>
+                                </p>
+                                <div className="flex items-center gap-2 text-slate-700 font-semibold">
+                                    <span>📞</span>
+                                    <span>Mobile: {order.deliveryDetails?.phone || order.userId?.phone || "No Phone"}</span>
+                                    {(order.deliveryDetails?.phone || order.userId?.phone) && (
+                                        <a 
+                                            href={`https://wa.me/${(order.deliveryDetails?.phone || order.userId?.phone).replace(/\D/g, '')}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md gap-1 transition-all"
+                                        >
+                                            <span className="text-xs">💬</span> WhatsApp
+                                        </a>
+                                    )}
+                                </div>
+                                <div className="text-xs text-slate-600 space-y-1 pt-1 border-t border-slate-200/60">
+                                    <p className="font-bold text-[10px] text-text-muted uppercase tracking-wider">Delivery/Pickup Address:</p>
+                                    {order.fulfillment?.method === 'pickup' ? (
+                                        <div>
+                                            <p className="font-bold text-green-600">🏪 STORE PICKUP</p>
+                                            {order.deliveryDetails?.address && (
+                                                <p className="text-text-muted mt-0.5">{order.deliveryDetails.address}</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <p className="font-medium">{order.deliveryDetails?.address || 'No Address'}</p>
+                                            <p className="text-text-muted">{order.deliveryDetails?.district}{order.deliveryDetails?.state ? `, ${order.deliveryDetails.state}` : ''} - {order.deliveryDetails?.pincode}</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

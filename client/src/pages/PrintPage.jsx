@@ -1625,38 +1625,40 @@ const PrintPage = () => {
                                 </div>
                             )}
 
-                            {/* Coupon Code */}
-                            <div className="space-y-3">
-                                <label className="text-sm font-semibold text-text-muted">🎟️ Have a Coupon Code?</label>
-                                {couponApplied ? (
-                                    <div className="bg-green-50 p-4 rounded-xl border border-green-200 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-2xl">🎉</span>
-                                            <div>
-                                                <p className="font-bold text-green-800">{couponApplied.code}</p>
-                                                <p className="text-xs text-green-600">₹{couponApplied.discount} discount applied!</p>
+                            {/* Coupon Code - Hidden as requested by the user */}
+                            {false && (
+                                <div className="space-y-3">
+                                    <label className="text-sm font-semibold text-text-muted">🎟️ Have a Coupon Code?</label>
+                                    {couponApplied ? (
+                                        <div className="bg-green-50 p-4 rounded-xl border border-green-200 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-2xl">🎉</span>
+                                                <div>
+                                                    <p className="font-bold text-green-800">{couponApplied.code}</p>
+                                                    <p className="text-xs text-green-600">₹{couponApplied.discount} discount applied!</p>
+                                                </div>
                                             </div>
+                                            <button onClick={removeCoupon} className="text-red-500 text-xs font-bold hover:text-red-700">Remove</button>
                                         </div>
-                                        <button onClick={removeCoupon} className="text-red-500 text-xs font-bold hover:text-red-700">Remove</button>
-                                    </div>
-                                ) : (
-                                    <div className="flex gap-2">
-                                        <input
-                                            value={couponCode}
-                                            onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                                            placeholder="Enter coupon code"
-                                            className="input-field flex-1 font-mono uppercase"
-                                        />
-                                        <button
-                                            onClick={handleApplyCoupon}
-                                            disabled={couponLoading}
-                                            className="btn-primary px-6 py-3 text-sm whitespace-nowrap"
-                                        >
-                                            {couponLoading ? '...' : 'Apply'}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <input
+                                                value={couponCode}
+                                                onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                                                placeholder="Enter coupon code"
+                                                className="input-field flex-1 font-mono uppercase"
+                                            />
+                                            <button
+                                                onClick={handleApplyCoupon}
+                                                disabled={couponLoading}
+                                                className="btn-primary px-6 py-3 text-sm whitespace-nowrap"
+                                            >
+                                                {couponLoading ? '...' : 'Apply'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             <div className="flex gap-4 pt-4">
                                 <button type="button" onClick={prevStep} className="flex-1 btn-secondary py-4">← Previous</button>
                             </div>

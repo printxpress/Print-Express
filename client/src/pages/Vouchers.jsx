@@ -18,7 +18,7 @@ const Vouchers = () => {
             minOrder: '₹200',
             validTill: '2026-12-31',
             color: 'blue',
-            isActive: true
+            isActive: false
         },
         {
             id: 2,
@@ -29,7 +29,7 @@ const Vouchers = () => {
             minOrder: '₹500',
             validTill: '2026-12-31',
             color: 'green',
-            isActive: true
+            isActive: false
         },
         {
             id: 3,
@@ -40,7 +40,7 @@ const Vouchers = () => {
             minOrder: '₹300',
             validTill: '2026-12-31',
             color: 'orange',
-            isActive: true
+            isActive: false
         },
         {
             id: 4,
@@ -74,6 +74,9 @@ const Vouchers = () => {
         return <PrintingAnimation />;
     }
 
+    const activeVouchers = vouchers.filter(v => v.isActive);
+    const upcomingVouchers = vouchers.filter(v => !v.isActive);
+
     return (
         <div className="py-12 max-w-6xl mx-auto space-y-12 animate-fade-in-up">
             {/* Header */}
@@ -93,40 +96,94 @@ const Vouchers = () => {
             {/* Active Vouchers */}
             <div>
                 <h2 className="text-2xl font-bold font-outfit mb-6">Active Vouchers</h2>
+                {activeVouchers.length === 0 ? (
+                    <div className="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <p className="text-text-muted text-sm font-medium">No active vouchers at the moment. Keep an eye out for upcoming offers!</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {activeVouchers.map((voucher) => (
+                            <div
+                                key={voucher.id}
+                                className="relative overflow-hidden rounded-2xl border-2 hover-lift transition-all"
+                            >
+                                {/* Voucher Design */}
+                                <div className={`bg-gradient-to-br ${getColorClasses(voucher.color)} p-6 text-white`}>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h3 className="text-xl font-bold font-outfit mb-1">{voucher.title}</h3>
+                                            <p className="text-sm opacity-90">{voucher.description}</p>
+                                        </div>
+                                        <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold">
+                                            {voucher.discount}
+                                        </div>
+                                    </div>
+
+                                    {/* Voucher Code */}
+                                    <div className="bg-white/10 backdrop-blur-sm border-2 border-white/30 rounded-xl p-4 mb-4">
+                                        <p className="text-xs opacity-75 mb-1">VOUCHER CODE</p>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-2xl font-bold font-mono tracking-wider">{voucher.code}</span>
+                                            <button
+                                                onClick={() => copyVoucherCode(voucher.code)}
+                                                className="bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors"
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Details */}
+                                    <div className="flex justify-between text-xs opacity-90">
+                                        <span>Min. Order: {voucher.minOrder}</span>
+                                        <span>Valid till: {new Date(voucher.validTill).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+
+                                {/* Decorative Circles */}
+                                <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full"></div>
+                                <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full"></div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Expired/Upcoming Vouchers */}
+            <div>
+                <h2 className="text-2xl font-bold font-outfit mb-6">Upcoming Offers</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {vouchers.filter(v => v.isActive).map((voucher) => (
+                    {upcomingVouchers.map((voucher) => (
                         <div
                             key={voucher.id}
-                            className="relative overflow-hidden rounded-2xl border-2 hover-lift transition-all"
+                            className="relative overflow-hidden rounded-2xl border-2 border-slate-200 shadow-sm"
                         >
-                            {/* Voucher Design */}
-                            <div className={`bg-gradient-to-br ${getColorClasses(voucher.color)} p-6 text-white`}>
+                            <div className="bg-gradient-to-br from-slate-400 to-slate-500 p-6 text-white relative">
                                 <div className="flex justify-between items-start mb-4">
                                     <div>
                                         <h3 className="text-xl font-bold font-outfit mb-1">{voucher.title}</h3>
                                         <p className="text-sm opacity-90">{voucher.description}</p>
                                     </div>
-                                    <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold">
-                                        {voucher.discount}
+                                    <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider text-white">
+                                        Coming Soon
                                     </div>
                                 </div>
 
-                                {/* Voucher Code */}
-                                <div className="bg-white/10 backdrop-blur-sm border-2 border-white/30 rounded-xl p-4 mb-4">
-                                    <p className="text-xs opacity-75 mb-1">VOUCHER CODE</p>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-2xl font-bold font-mono tracking-wider">{voucher.code}</span>
-                                        <button
-                                            onClick={() => copyVoucherCode(voucher.code)}
-                                            className="bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors"
-                                        >
-                                            Copy
-                                        </button>
+                                {/* Voucher Code & Discount display */}
+                                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 mb-4">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <p className="text-[10px] opacity-75 mb-0.5">VOUCHER CODE</p>
+                                            <span className="text-2xl font-bold font-mono tracking-wider">{voucher.code}</span>
+                                        </div>
+                                        <div className="bg-white text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">
+                                            {voucher.discount}
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Details */}
-                                <div className="flex justify-between text-xs opacity-90">
+                                <div className="flex justify-between text-xs opacity-90 border-t border-white/10 pt-3">
                                     <span>Min. Order: {voucher.minOrder}</span>
                                     <span>Valid till: {new Date(voucher.validTill).toLocaleDateString()}</span>
                                 </div>
@@ -135,36 +192,6 @@ const Vouchers = () => {
                             {/* Decorative Circles */}
                             <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full"></div>
                             <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full"></div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Expired/Upcoming Vouchers */}
-            <div>
-                <h2 className="text-2xl font-bold font-outfit mb-6">Upcoming Offers</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {vouchers.filter(v => !v.isActive).map((voucher) => (
-                        <div
-                            key={voucher.id}
-                            className="relative overflow-hidden rounded-2xl border-2 border-gray-300 opacity-60"
-                        >
-                            <div className="bg-gradient-to-br from-gray-400 to-gray-500 p-6 text-white">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 className="text-xl font-bold font-outfit mb-1">{voucher.title}</h3>
-                                        <p className="text-sm opacity-90">{voucher.description}</p>
-                                    </div>
-                                    <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold">
-                                        Coming Soon
-                                    </div>
-                                </div>
-
-                                <div className="bg-white/10 backdrop-blur-sm border-2 border-white/30 rounded-xl p-4">
-                                    <p className="text-xs opacity-75 mb-1">VOUCHER CODE</p>
-                                    <span className="text-2xl font-bold font-mono tracking-wider">{voucher.code}</span>
-                                </div>
-                            </div>
                         </div>
                     ))}
                 </div>

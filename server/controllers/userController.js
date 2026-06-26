@@ -115,7 +115,7 @@ export const verifyOtp = async (req, res) => {
 
         const isProfileComplete = !!(user.name);
 
-        return res.json({ success: true, user, token, isProfileComplete });
+        return res.json({ success: true, user, token, isProfileComplete, isNewUser });
     } catch (error) {
         console.log(error.message);
         res.json({ success: false, message: error.message });

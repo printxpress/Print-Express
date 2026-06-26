@@ -934,6 +934,12 @@ export const generateThermalBillPDF = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
     try {
         const { orderId, status } = req.body;
+
+        // Strict validation: Only admin or billing_manager can change order status
+        if (req.sellerRole !== 'admin' && req.sellerRole !== 'billing_manager') {
+            return res.json({ success: false, message: "Unauthorized. Only Admin or Billing Manager can update status." });
+        }
+
         const order = await Order.findByIdAndUpdate(orderId, { status }, { new: true }).populate('userId');
 
         // Trigger WhatsApp notification logic
