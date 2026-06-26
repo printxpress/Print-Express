@@ -525,6 +525,33 @@ const Orders = () => {
                                         </div>
                                     )}
                                 </div>
+                                <div className="text-xs text-slate-600 space-y-1 pt-2 border-t border-slate-200/60 mt-1">
+                                    <p className="font-bold text-[10px] text-text-muted uppercase tracking-wider">Payment Info:</p>
+                                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                        <span className="font-semibold text-slate-700">Mode:</span>
+                                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded text-[10px] font-bold">
+                                            {order.payment?.method || 'N/A'}
+                                        </span>
+                                        <span className={`px-2 py-0.5 border rounded text-[10px] font-bold ${order.payment?.isPaid ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
+                                            {order.payment?.isPaid ? 'PAID' : 'UNPAID'}
+                                        </span>
+                                    </div>
+                                    {order.payment?.method === 'RAZORPAY' && (
+                                        <div className="mt-1 space-y-0.5 font-mono text-[10px] text-slate-500">
+                                            {order.payment?.razorpayPaymentId && (
+                                                <p>Payment ID: <span className="font-bold text-slate-700">{order.payment.razorpayPaymentId}</span></p>
+                                            )}
+                                            {order.payment?.razorpayOrderId && (
+                                                <p>Order ID: <span className="font-bold text-slate-700">{order.payment.razorpayOrderId}</span></p>
+                                            )}
+                                        </div>
+                                    )}
+                                    {order.payment?.transactionId && (
+                                        <p className="mt-1 font-mono text-[10px] text-slate-500">
+                                            Txn ID: <span className="font-bold text-slate-700">{order.payment.transactionId}</span>
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
