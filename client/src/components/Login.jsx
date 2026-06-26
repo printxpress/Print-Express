@@ -89,7 +89,7 @@ const Login = () => {
             if (data.success) {
                 if (data.token) localStorage.setItem('token', data.token);
                 setUser(data.user);
-                
+
                 if (!data.isNewUser) {
                     // Existing customer - Welcome card flow
                     setStep("welcome");
