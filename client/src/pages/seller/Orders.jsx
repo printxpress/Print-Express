@@ -23,8 +23,16 @@ const Orders = () => {
 
     const filteredOrders = orders.filter(o => {
         const isPos = o.files.some(f => f.fileType === 'POS Service');
-        if (filter === 'online') return !isPos;
-        return !isPos; // Default: hide POS
+        if (isPos) return false;
+
+        const isActive = ['received', 'printing', 'ready'].includes(o.status);
+        const isCompleted = ['delivered', 'picked_up', 'cancelled', 'failed'].includes(o.status);
+
+        if (filter === 'completed') {
+            return isCompleted;
+        }
+        // For 'all' or 'online', only show active orders
+        return isActive;
     });
 
     const searchedAndFilteredOrders = filteredOrders.filter(o => {
@@ -337,9 +345,9 @@ const Orders = () => {
         fetchOrders();
     }, [])
 
-    const receivedOrders = filteredOrders.filter(o => o.status === 'received');
-    const readyOrders = filteredOrders.filter(o => o.status === 'ready');
-    const deliveredOrders = filteredOrders.filter(o => o.status === 'delivered');
+    const receivedOrders = orders.filter(o => o.status === 'received');
+    const readyOrders = orders.filter(o => o.status === 'ready');
+    const deliveredOrders = orders.filter(o => o.status === 'delivered');
 
     return (
         <div className='space-y-8'>
@@ -462,13 +470,13 @@ const Orders = () => {
                     )}
                 </div>
                 <div className="flex gap-4 border-b border-border pb-px w-full sm:w-auto">
-                    {['all', 'online'].map((type) => (
+                    {['all', 'online', 'completed'].map((type) => (
                         <button
                             key={type}
                             onClick={() => setFilter(type)}
                             className={`pb-2 px-2 text-sm font-bold capitalize transition-all relative ${filter === type ? 'text-primary' : 'text-text-muted hover:text-text-main'}`}
                         >
-                            {type} Orders
+                            {type === 'all' ? 'Active' : type === 'completed' ? 'Completed' : type} Orders
                             {filter === type && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full shadow-[0_-2px_8px_rgba(59,130,246,0.3)]"></div>}
                         </button>
                     ))}
