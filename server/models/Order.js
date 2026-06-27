@@ -29,6 +29,7 @@ const orderSchema = new mongoose.Schema({
         bindingCharge: Number,
         deliveryCharge: Number,
         couponDiscount: { type: Number, default: 0 },
+        referralDiscount: { type: Number, default: 0 },
         walletUsed: { type: Number, default: 0 },
         totalAmount: Number
     },

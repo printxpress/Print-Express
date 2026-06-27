@@ -141,11 +141,33 @@ const PrintPage = () => {
         }
     }, [fileMetadata, activeDocTab, options.copies, options.side, options.pagesPerSheet, options.pageRangeType, options.customPages, options.binding]);
 
+    // Enforce single-sided for single-page documents
+    useEffect(() => {
+        let changed = false;
+        const updated = documentsOptions.map((opt, i) => {
+            const meta = fileMetadata[i];
+            if (meta && meta.pageCount === 1 && opt.side !== 'Single') {
+                changed = true;
+                return { ...opt, side: 'Single' };
+            }
+            return opt;
+        });
+        if (changed) {
+            setDocumentsOptions(updated);
+        }
+    }, [fileMetadata, documentsOptions]);
+
     // Apply same options as first document to all others
     const applySameAsFirst = () => {
         if (documentsOptions.length <= 1) return;
         const first = { ...documentsOptions[0] };
-        setDocumentsOptions(prev => prev.map(() => ({ ...first })));
+        setDocumentsOptions(prev => prev.map((opt, i) => {
+            const isSinglePage = fileMetadata[i]?.pageCount === 1;
+            return {
+                ...first,
+                side: isSinglePage ? 'Single' : first.side
+            };
+        }));
         toast.success('✅ Applied first document\'s settings to all documents');
     };
 
@@ -451,7 +473,11 @@ const PrintPage = () => {
             if (meta.isValid) {
                 validFiles.push(file);
                 metadata.push(meta);
-                newOptions.push(getDefaultOptions());
+                const defaultOpts = getDefaultOptions();
+                if (meta.pageCount === 1) {
+                    defaultOpts.side = 'Single';
+                }
+                newOptions.push(defaultOpts);
                 setFileUploadSuccessModal({
                     isOpen: true,
                     fileName: meta.name,
@@ -556,7 +582,7 @@ const PrintPage = () => {
                 printOptions: documentsOptions,
                 fulfillment: {
                     method: fulfillment,
-                    pickupLocation: fulfillment === 'pickup' ? 'Print Express Store, Coimbatore' : undefined
+                    pickupLocation: fulfillment === 'pickup' ? 'Print Express, AnbuDigital, Bengaluru Main road, Thiruvalluvar Nagar, Chengam 606701' : undefined
                 },
                 deliveryDetails: fulfillment === 'delivery' ? { ...delivery, courierPartner } : undefined,
                 paymentMethod: paymentMethod === 'UPI' ? 'RAZORPAY' : paymentMethod,
@@ -1046,10 +1072,22 @@ const PrintPage = () => {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-semibold text-text-muted">Print Side</label>
-                                    <select value={options.side} onChange={(e) => setOptions({ ...options, side: e.target.value })} className="input-field">
+                                    <select 
+                                        value={options.side} 
+                                        onChange={(e) => setOptions({ ...options, side: e.target.value })} 
+                                        className="input-field"
+                                        disabled={docPages === 1}
+                                    >
                                         <option value="Single">Single Sided</option>
-                                        <option value="Double">Double Sided (Duplex)</option>
+                                        {docPages > 1 && (
+                                            <option value="Double">Double Sided (Duplex)</option>
+                                        )}
                                     </select>
+                                    {docPages === 1 && (
+                                        <p className="text-xs text-amber-600 font-medium mt-1">
+                                            ℹ️ Single-page documents are printed single-sided only.
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-semibold text-text-muted">Pages to Print</label>
@@ -1536,15 +1574,13 @@ const PrintPage = () => {
                             {fulfillment === 'pickup' && (
                                 <div className="bg-green-50 p-5 rounded-xl border border-green-200 space-y-2">
                                     <p className="font-bold text-green-800">📍 Pickup Location</p>
-                                    <p className="text-sm text-green-700">{shopSettings?.name || "Print Express Store"}</p>
-                                    <p className="text-xs text-green-600">{shopSettings?.address || "Coimbatore, Tamil Nadu"}</p>
+                                    <p className="text-sm text-green-700">{shopSettings?.name || "Print Express"}</p>
+                                    <p className="text-xs text-green-600">{shopSettings?.address || "AnbuDigital, Bengaluru Main road, Thiruvalluvar Nagar, Chengam 606701"}</p>
                                     <p className="text-xs text-green-700 font-bold">📞 Mobile: {shopSettings?.phone || shopSettings?.whatsapp || "917603957422"}</p>
                                     <div className="flex flex-wrap gap-2 mt-3">
-                                        {shopSettings?.locationUrl && (
-                                            <a href={shopSettings.locationUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center gap-1">
-                                                🗺️ View on Map
-                                            </a>
-                                        )}
+                                        <a href={shopSettings?.locationUrl || "https://www.google.com/maps/search/?api=1&query=Print+Express+AnbuDigital+Bengaluru+Main+road+Thiruvalluvar+Nagar+Chengam+606701"} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center gap-1">
+                                            🗺️ View on Map
+                                        </a>
                                         <a href={`tel:${shopSettings?.phone || shopSettings?.whatsapp || '917603957422'}`} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors flex items-center gap-1">
                                             📞 Call Store
                                         </a>

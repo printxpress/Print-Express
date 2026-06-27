@@ -18,8 +18,13 @@ axios.interceptors.request.use(
         } else if (sellerToken && config.url.includes('/api/seller')) {
             config.headers.Authorization = `Bearer ${sellerToken}`;
         } else if (token || sellerToken) {
-            // Fallback: Use whichever token is available for common routes like /api/order
-            config.headers.Authorization = `Bearer ${token || sellerToken}`;
+            // Prioritize sellerToken if we are currently visiting a seller dashboard path (/seller)
+            const isSellerPage = window.location.pathname.includes('/seller');
+            if (isSellerPage && sellerToken) {
+                config.headers.Authorization = `Bearer ${sellerToken}`;
+            } else {
+                config.headers.Authorization = `Bearer ${token || sellerToken}`;
+            }
         }
 
         return config;

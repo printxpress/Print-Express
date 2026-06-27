@@ -20,6 +20,41 @@ const Orders = () => {
     const [editingOrder, setEditingOrder] = useState(null);
     const [downloadingFile, setDownloadingFile] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
+    const [downloadedOrders, setDownloadedOrders] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('downloaded_orders') || '[]');
+        } catch {
+            return [];
+        }
+    });
+
+    const markAsDownloaded = (orderId) => {
+        if (!orderId) return;
+        setDownloadedOrders(prev => {
+            if (prev.includes(orderId)) return prev;
+            const next = [...prev, orderId];
+            localStorage.setItem('downloaded_orders', JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const [downloadedFiles, setDownloadedFiles] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('downloaded_files') || '[]');
+        } catch {
+            return [];
+        }
+    });
+
+    const markFileAsDownloaded = (fileUrl) => {
+        if (!fileUrl) return;
+        setDownloadedFiles(prev => {
+            if (prev.includes(fileUrl)) return prev;
+            const next = [...prev, fileUrl];
+            localStorage.setItem('downloaded_files', JSON.stringify(next));
+            return next;
+        });
+    };
 
     const filteredOrders = orders.filter(o => {
         const isPos = o.files.some(f => f.fileType === 'POS Service');
@@ -160,6 +195,7 @@ const Orders = () => {
     }
 
     const downloadThermalBill = (orderId) => {
+        markAsDownloaded(orderId);
         window.open(`${axios.defaults.baseURL}/api/order/thermal-bill/${orderId}`, '_blank');
     }
 
@@ -256,11 +292,13 @@ const Orders = () => {
         printWindow.document.close();
     };
 
-    const handleDownloadFile = async (url, originalName) => {
+    const handleDownloadFile = async (url, originalName, orderId) => {
         if (!url) {
             toast.error("File URL not found");
             return;
         }
+        if (orderId) markAsDownloaded(orderId);
+        markFileAsDownloaded(url);
         const targetUrl = getFullUrl(url);
         setDownloadingFile(prev => ({ ...prev, [url]: true }));
         try {
@@ -301,7 +339,13 @@ const Orders = () => {
         }
     };
 
-    const handleDownloadAll = async (files) => {
+    const handleDownloadAll = async (files, orderId) => {
+        if (orderId) markAsDownloaded(orderId);
+        if (Array.isArray(files)) {
+            files.forEach(f => {
+                if (f.url) markFileAsDownloaded(f.url);
+            });
+        }
         const loadingToast = toast.loading("Preparing files for download...");
         try {
             for (let i = 0; i < files.length; i++) {
@@ -485,10 +529,22 @@ const Orders = () => {
 
             <div className="space-y-4">
                 {searchedAndFilteredOrders.map((order, index) => (
-                    <div key={index} className="card-premium p-6 flex flex-col md:flex-row gap-8 justify-between hover:border-primary/50 transition-colors">
+                    <div 
+                        key={index} 
+                        className={`card-premium p-6 flex flex-col md:flex-row gap-8 justify-between transition-all duration-300 ${
+                            downloadedOrders.includes(order._id) 
+                                ? 'border-emerald-500/60 shadow-[0_0_18px_rgba(16,185,129,0.3)] bg-emerald-50/5 ring-1 ring-emerald-500/20' 
+                                : 'hover:border-primary/50'
+                        }`}
+                    >
                         <div className="space-y-3 flex-1">
                             <div className="flex items-center gap-3">
                                 <span className="font-outfit font-bold text-lg">#{order._id?.toString().slice(-8).toUpperCase() || 'N/A'}</span>
+                                {downloadedOrders.includes(order._id) && (
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-bold rounded-md flex items-center gap-0.5 shadow-sm border border-emerald-200 animate-pulse">
+                                        ✓ Viewed/Downloaded
+                                    </span>
+                                )}
                                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(order.status)}`}>
                                     {order.status}
                                 </span>
@@ -567,11 +623,23 @@ const Orders = () => {
                             <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">ORDER CONTENT</p>
                             <div className="space-y-4 text-sm">
                                 {Array.isArray(order.printOptions) ? order.printOptions.map((opt, optIdx) => (
-                                    <div key={optIdx} className="bg-slate-50/50 p-3 rounded-lg border border-slate-100 space-y-2">
+                                    <div 
+                                        key={optIdx} 
+                                        className={`p-3 rounded-lg space-y-2 transition-all duration-300 ${
+                                            downloadedFiles.includes(order.files[optIdx]?.url)
+                                                ? 'bg-gradient-to-br from-pink-500/5 via-purple-500/5 to-indigo-500/5 border-t-pink-500 border-r-purple-500 border-b-indigo-500 border-l-blue-500 border-[2px] shadow-[0_0_20px_rgba(168,85,247,0.45)] ring-1 ring-purple-500/20'
+                                                : 'bg-slate-50/50 border border-slate-100 hover:border-slate-300'
+                                        }`}
+                                    >
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="font-bold text-xs truncate max-w-[200px] text-slate-800" title={order.files[optIdx]?.originalName}>
-                                                    📄 {order.files[optIdx]?.originalName || `File ${optIdx + 1}`}
+                                                <p className="font-bold text-xs truncate max-w-[200px] text-slate-800 flex items-center gap-1.5" title={order.files[optIdx]?.originalName}>
+                                                    <span>📄 {order.files[optIdx]?.originalName || `File ${optIdx + 1}`}</span>
+                                                    {downloadedFiles.includes(order.files[optIdx]?.url) && (
+                                                        <span className="px-2 py-0.5 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 text-white text-[7px] font-black rounded shadow-[0_0_8px_rgba(168,85,247,0.4)] border-none uppercase tracking-widest">
+                                                            ✓ Viewed
+                                                        </span>
+                                                    )}
                                                 </p>
                                                 <p className="text-[9px] text-slate-400 font-medium mt-0.5">
                                                     Uploaded on {new Date(order.createdAt).toLocaleDateString()} by {order.userId?.name || 'Walk-in'}
@@ -614,12 +682,16 @@ const Orders = () => {
                                                         href={getFullUrl(order.files[optIdx].url)} 
                                                         target="_blank" 
                                                         rel="noreferrer" 
+                                                        onClick={() => {
+                                                            markAsDownloaded(order._id);
+                                                            markFileAsDownloaded(order.files[optIdx].url);
+                                                        }}
                                                         className="px-2.5 py-1 bg-slate-950 text-white rounded text-[9px] font-bold hover:bg-black transition-colors whitespace-nowrap flex items-center gap-1 shadow-sm"
                                                     >
                                                         👁️ View
                                                     </a>
                                                     <button 
-                                                        onClick={() => handleDownloadFile(order.files[optIdx].url, order.files[optIdx].originalName)}
+                                                        onClick={() => handleDownloadFile(order.files[optIdx].url, order.files[optIdx].originalName, order._id)}
                                                         disabled={downloadingFile[order.files[optIdx].url]}
                                                         className={`px-2.5 py-1 rounded text-[9px] font-bold transition-all flex items-center gap-1 border shadow-sm ${
                                                             downloadingFile[order.files[optIdx].url]
@@ -642,6 +714,10 @@ const Orders = () => {
                                                         href={getFullUrl(order.files[optIdx].url)} 
                                                         target="_blank" 
                                                         rel="noreferrer" 
+                                                        onClick={() => {
+                                                            markAsDownloaded(order._id);
+                                                            markFileAsDownloaded(order.files[optIdx].url);
+                                                        }}
                                                         className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-600 hover:text-white rounded text-[9px] font-bold transition-all whitespace-nowrap flex items-center gap-1 shadow-sm"
                                                         title="Open raw Cloudinary resource link"
                                                     >
@@ -665,9 +741,12 @@ const Orders = () => {
                                 )}
 
                                 {order.files?.length > 1 && (
-                                    <div className="pt-2">
+                                    <div className="pt-2 max-w-xs">
                                         <button 
-                                            onClick={() => handleDownloadAll(order.files)}
+                                            onClick={() => {
+                                                markAsDownloaded(order._id);
+                                                handleDownloadAll(order.files, order._id);
+                                            }}
                                             className="w-full py-2 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white transition-all border border-blue-200 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm"
                                         >
                                             📦 Download All ({order.files.length} Files)
@@ -709,8 +788,49 @@ const Orders = () => {
                                 </select>
                                 <button onClick={() => sendWANotification(order)} className="text-primary font-bold text-[10px] hover:underline">SEND STATUS WA 🔗</button>
                                 <button onClick={() => generateLinkAndWhatsApp(order)} className="text-green-600 font-bold text-[10px] hover:underline whitespace-nowrap">SEND BILL & PAY LINK 🏦</button>
-                                <button onClick={() => downloadThermalBill(order._id)} className="text-slate-600 font-bold text-[10px] hover:underline">VIEW THERMAL BILL 📄</button>
                                 <button onClick={() => handleEditOrder(order)} className="mt-2 px-3 py-1 text-[10px] font-bold bg-slate-100 text-slate-700 rounded hover:bg-slate-200 transition-colors">Edit Options ⚙️</button>
+                                {(order.pricing?.walletUsed > 0 || order.pricing?.referralDiscount > 0) && (
+                                    <button 
+                                        onClick={async () => {
+                                            if (window.confirm(`💰 Are you sure you want to refund the utilized wallet balance (₹${order.pricing?.walletUsed || 0}) and reference discount (₹${order.pricing?.referralDiscount || 0}) utilized for order #${order.displayId || order._id.toString().slice(-8).toUpperCase()} back to the customer's wallet? This will reset the utilized balance to 0 on this order to prevent duplicate refunds.`)) {
+                                                try {
+                                                    const { data } = await axios.post(`/api/order/refund-wallet/${order._id}`);
+                                                    if (data.success) {
+                                                        toast.success(data.message);
+                                                        fetchOrders();
+                                                    } else {
+                                                        toast.error(data.message);
+                                                    }
+                                                } catch (error) {
+                                                    toast.error("Failed to process refund");
+                                                }
+                                            }
+                                        }} 
+                                        className="mt-2 px-3 py-1.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-600 hover:text-white transition-all active:scale-95 cursor-pointer"
+                                    >
+                                        Refund Wallet/Referral 💰
+                                    </button>
+                                )}
+                                <button 
+                                    onClick={async () => {
+                                        if (window.confirm(`⚠️ Are you sure you want to delete order #${order.displayId || order._id.toString().slice(-8).toUpperCase()}? This will permanently delete the order and automatically refund any wallet balance (₹${order.pricing?.walletUsed || 0}) and reference discount (₹${order.pricing?.referralDiscount || 0}) utilized.`)) {
+                                            try {
+                                                const { data } = await axios.post(`/api/order/delete/${order._id}`);
+                                                if (data.success) {
+                                                    toast.success(data.message);
+                                                    fetchOrders();
+                                                } else {
+                                                    toast.error(data.message);
+                                                }
+                                            } catch (error) {
+                                                toast.error("Failed to delete order");
+                                            }
+                                        }
+                                    }} 
+                                    className="mt-2 px-3 py-1.5 text-[10px] font-bold bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-600 hover:text-white transition-all active:scale-95 cursor-pointer"
+                                >
+                                    Delete Order 🗑️
+                                </button>
                             </div>
                         </div>
                     </div>

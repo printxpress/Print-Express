@@ -12,7 +12,9 @@ import {
     generateRazorpayLink,
     createRazorpayOrder,
     verifyRazorpayPayment,
-    downloadCustomerFile
+    downloadCustomerFile,
+    deleteOrder,
+    refundOrderWallet
 } from '../controllers/orderController.js';
 import authUser from '../middlewares/authUser.js';
 import authSeller from '../middlewares/authSeller.js';
@@ -27,6 +29,8 @@ orderRouter.post('/pos', authSeller, createPosOrder);
 orderRouter.get('/all', authSeller, getAllOrders);
 orderRouter.post('/update-status', authSeller, updateOrderStatus);
 orderRouter.post('/edit/:orderId', authSeller, updateOrderAndRecalculate);
+orderRouter.post('/delete/:orderId', authSeller, deleteOrder);
+orderRouter.post('/refund-wallet/:orderId', authSeller, refundOrderWallet);
 orderRouter.get('/thermal-bill/:orderId', generateThermalBillPDF);
 orderRouter.post('/payment-link/:orderId', authUser, generateRazorpayLink);
 orderRouter.get('/download-file', authSeller, downloadCustomerFile);
