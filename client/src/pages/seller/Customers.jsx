@@ -164,7 +164,14 @@ const Customers = () => {
                                     <td className="p-4 text-center">
                                         <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-bold">{customer.orders || 0}</span>
                                     </td>
-                                    <td className="p-4 text-right font-semibold">₹{(customer.totalSpent || 0).toLocaleString()}</td>
+                                    <td className="p-4 text-right">
+                                        <div className="font-semibold text-slate-800">₹{(customer.totalSpent || 0).toLocaleString()}</div>
+                                        {customer.unpaidAmount > 0 && (
+                                            <div className="text-[10px] mt-1 inline-block bg-red-50 text-red-500 border border-red-200 px-2 py-0.5 rounded-full font-bold animate-pulse whitespace-nowrap">
+                                                Unpaid: ₹{customer.unpaidAmount.toLocaleString()}
+                                            </div>
+                                        )}
+                                    </td>
                                     <td className="p-4 text-right text-xs text-text-muted">
                                         {new Date(customer.createdAt).toLocaleDateString()}
                                     </td>

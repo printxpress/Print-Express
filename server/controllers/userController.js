@@ -203,20 +203,24 @@ export const updateProfile = async (req, res) => {
 export const getAllUsers = async (req, res) => {
     try {
         const users = await User.find({}).populate('referredBy', 'name phone').sort({ createdAt: -1 }).lean();
-        const orders = await Order.find({
-            $or: [
-                { 'payment.isPaid': true },
-                { 'payment.method': 'COD' }
-            ]
-        });
+        const orders = await Order.find({});
 
         const usersWithStats = users.map(user => {
             const userOrders = orders.filter(o => o.userId?.toString() === user._id.toString());
-            const totalSpent = userOrders.reduce((sum, o) => sum + (o.pricing?.totalAmount || 0), 0);
+            
+            // Paid or COD orders
+            const paidOrders = userOrders.filter(o => o.payment?.isPaid === true || o.payment?.method === 'COD');
+            const totalSpent = paidOrders.reduce((sum, o) => sum + (o.pricing?.totalAmount || 0), 0);
+            
+            // Unpaid online orders
+            const unpaidOrders = userOrders.filter(o => o.payment?.isPaid === false && o.payment?.method !== 'COD');
+            const unpaidAmount = unpaidOrders.reduce((sum, o) => sum + (o.pricing?.totalAmount || 0), 0);
+
             return {
                 ...user,
-                orders: userOrders.length,
-                totalSpent
+                orders: paidOrders.length,
+                totalSpent,
+                unpaidAmount
             };
         });
 
