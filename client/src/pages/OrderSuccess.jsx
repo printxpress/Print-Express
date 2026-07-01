@@ -6,9 +6,13 @@ import toast from 'react-hot-toast';
 const OrderSuccess = () => {
     const [searchParams] = useSearchParams();
     const orderId = searchParams.get('orderId');
+    const razorpay_payment_link_id = searchParams.get('razorpay_payment_link_id');
+    const razorpay_payment_id = searchParams.get('razorpay_payment_id');
     const navigate = useNavigate();
     const { axios } = useAppContext();
     const [shop, setShop] = useState(null);
+    const [verifying, setVerifying] = useState(false);
+    const [verificationFailed, setVerificationFailed] = useState(false);
 
     useEffect(() => {
         const fetchShop = async () => {
@@ -22,6 +26,35 @@ const OrderSuccess = () => {
         fetchShop();
     }, [axios]);
 
+    useEffect(() => {
+        const verifyPayment = async () => {
+            if (razorpay_payment_link_id && orderId) {
+                setVerifying(true);
+                setVerificationFailed(false);
+                try {
+                    const { data } = await axios.post('/api/order/verify-link', {
+                        orderId,
+                        razorpay_payment_link_id,
+                        razorpay_payment_id
+                    });
+                    if (data.success) {
+                        toast.success("Payment verified successfully!");
+                    } else {
+                        toast.error(data.message || "Payment verification failed.");
+                        setVerificationFailed(true);
+                    }
+                } catch (err) {
+                    console.error("Payment verification error:", err);
+                    toast.error("Error verifying payment.");
+                    setVerificationFailed(true);
+                } finally {
+                    setVerifying(false);
+                }
+            }
+        };
+        verifyPayment();
+    }, [orderId, razorpay_payment_link_id, razorpay_payment_id, axios]);
+
     const handleReachUs = () => {
         if (!shop?.locationUrl || shop.locationUrl.trim() === '') {
             toast.error("Store location not set yet. Please contact us directly.");
@@ -34,6 +67,52 @@ const OrderSuccess = () => {
             toast.error("Location link appears to be broken. Please contact us directly.");
         }
     };
+
+    if (verifying) {
+        return (
+            <div className="min-h-[70vh] flex flex-col items-center justify-center py-20 px-6 font-outfit">
+                <div className="text-center space-y-4">
+                    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <h2 className="text-xl font-bold">Verifying your payment...</h2>
+                    <p className="text-sm text-text-muted">Please do not close this window or refresh the page.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (verificationFailed) {
+        return (
+            <div className="min-h-[70vh] flex flex-col items-center justify-center py-20 px-6 font-outfit">
+                <div className="max-w-md w-full space-y-6">
+                    <div className="card-premium p-10 text-center space-y-8 animate-in zoom-in duration-500">
+                        <div className="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-5xl mx-auto shadow-inner">
+                            ⚠️
+                        </div>
+                        <div className="space-y-3">
+                            <h1 className="text-3xl font-black text-text-main tracking-tight italic uppercase">Verification Failed</h1>
+                            <p className="text-text-muted font-medium text-sm">
+                                We could not verify your payment for order <span className="text-primary font-bold">#{orderId?.slice(-8).toUpperCase()}</span>. If you completed the payment, please contact support with your receipt.
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-3 pt-4">
+                            <button
+                                onClick={() => navigate('/my-orders')}
+                                className="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-xl hover:shadow-primary/30 hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest text-sm"
+                            >
+                                View My Orders & Try Again
+                            </button>
+                            <button
+                                onClick={() => navigate('/')}
+                                className="text-primary font-bold text-xs hover:underline pt-2"
+                            >
+                                Back to Home
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-[70vh] flex flex-col items-center justify-center py-20 px-6">

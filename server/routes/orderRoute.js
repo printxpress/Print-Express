@@ -14,7 +14,8 @@ import {
     verifyRazorpayPayment,
     downloadCustomerFile,
     deleteOrder,
-    refundOrderWallet
+    refundOrderWallet,
+    verifyRazorpayLink
 } from '../controllers/orderController.js';
 import authUser from '../middlewares/authUser.js';
 import authSeller from '../middlewares/authSeller.js';
@@ -39,5 +40,6 @@ orderRouter.delete('/cleanup', authSeller, cleanupOldFiles);
 // Razorpay Routes
 orderRouter.post('/razorpay-order', authUser, createRazorpayOrder);
 orderRouter.post('/razorpay-verify', authUser, verifyRazorpayPayment);
+orderRouter.post('/verify-link', authUser, verifyRazorpayLink);
 
 export default orderRouter;

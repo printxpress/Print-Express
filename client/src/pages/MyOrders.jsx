@@ -117,6 +117,11 @@ const MyOrders = () => {
                                     <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest ${getStatusColor(order.status)}`}>
                                         {order.status}
                                     </span>
+                                    {!order.payment?.isPaid && (
+                                        <span className="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest bg-red-100 text-red-600 animate-pulse font-mono">
+                                            ⚠️ UNPAID
+                                        </span>
+                                    )}
                                     <p className="text-sm font-bold text-text-muted">{new Date(order.createdAt).toLocaleDateString()}</p>
                                 </div>
                             </div>

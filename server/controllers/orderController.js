@@ -176,7 +176,7 @@ export const placePrintOrder = async (req, res) => {
                 docBindCharge = chartRate * (opts.bindingQuantity || 1);
             } else if (opts.binding === 'Staple') {
                 const stapleRate = rules.additional?.staple_binding || 0.30;
-                docBindCharge = stapleRate * docSheets;
+                docBindCharge = stapleRate * (opts.copies || 1);
             }
 
             opts.price = docPrintCharge + docBindCharge;
@@ -651,7 +651,7 @@ export const updateOrderAndRecalculate = async (req, res) => {
                 docBindCharge = chartRate * (opts.bindingQuantity || 1);
             } else if (opts.binding === 'Staple') {
                 const stapleRate = rules.additional?.staple_binding || 0.30;
-                docBindCharge = stapleRate * docSheets;
+                docBindCharge = stapleRate * (opts.copies || 1);
             }
 
             opts.price = docPrintCharge + docBindCharge;
@@ -807,7 +807,9 @@ export const generateThermalBillPDF = async (req, res) => {
         // Logo / Brand
         const logoPath = path.join(__dirname, '../assets/logo.png');
         try {
-            doc.image(logoPath, 50, 55, { width: 130 });
+            // Draw a dark background block so that white/transparent logo text (like "Express") is fully visible
+            doc.roundedRect(45, 48, 140, 42, 6).fill(themeSlate);
+            doc.image(logoPath, 50, 52, { width: 130 });
         } catch (error) {
             doc.fontSize(22).fillColor(themeSlate).font('Helvetica-Bold').text('PRINT', 50, 55, { continued: true })
                .fillColor(themeAccent).text('EXPRESS');
@@ -1224,4 +1226,41 @@ export const refundOrderWallet = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
+
+// Verify Razorpay Payment Link : /api/order/verify-link
+export const verifyRazorpayLink = async (req, res) => {
+    try {
+        const { orderId, razorpay_payment_link_id, razorpay_payment_id } = req.body;
+        if (!orderId || !razorpay_payment_link_id) {
+            return res.json({ success: false, message: "Missing required parameters" });
+        }
+
+        const order = await Order.findById(orderId);
+        if (!order) return res.json({ success: false, message: "Order not found" });
+
+        // If already paid, return success
+        if (order.payment.isPaid) {
+            return res.json({ success: true, message: "Payment already verified" });
+        }
+
+        // Fetch the payment link status from Razorpay API
+        const instance = getRazorpayInstance();
+        const paymentLink = await instance.paymentLink.fetch(razorpay_payment_link_id);
+
+        if (paymentLink.status === 'paid') {
+            order.payment.isPaid = true;
+            order.payment.transactionId = razorpay_payment_id || (paymentLink.payments && paymentLink.payments[0] && paymentLink.payments[0].payment_id) || '';
+            order.payment.razorpayPaymentId = razorpay_payment_id || (paymentLink.payments && paymentLink.payments[0] && paymentLink.payments[0].payment_id) || '';
+            order.status = 'received';
+            await order.save();
+            return res.json({ success: true, message: "Payment verified successfully" });
+        } else {
+            return res.json({ success: false, message: `Payment link status is ${paymentLink.status}` });
+        }
+    } catch (error) {
+        console.error("Link Verification Error:", error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
 

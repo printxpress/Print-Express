@@ -203,7 +203,12 @@ export const updateProfile = async (req, res) => {
 export const getAllUsers = async (req, res) => {
     try {
         const users = await User.find({}).populate('referredBy', 'name phone').sort({ createdAt: -1 }).lean();
-        const orders = await Order.find({});
+        const orders = await Order.find({
+            $or: [
+                { 'payment.isPaid': true },
+                { 'payment.method': 'COD' }
+            ]
+        });
 
         const usersWithStats = users.map(user => {
             const userOrders = orders.filter(o => o.userId?.toString() === user._id.toString());

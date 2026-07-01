@@ -131,10 +131,9 @@ const PrintPage = () => {
         const totPgs = options.pageRangeType === 'All' ? docPgs : calculateCustomPageCount(options.customPages);
         const effPgs = options.pagesPerSheet === 2 ? Math.ceil(totPgs / 2) : totPgs;
         const bSheets = options.side === 'Double' ? Math.ceil(effPgs / 2) : effPgs;
-        const totalSheets = bSheets * (options.copies || 1);
-        if (options.binding === 'Staple' && totalSheets > 50) {
+        if (options.binding === 'Staple' && bSheets > 50) {
             setOptions(prev => ({ ...prev, binding: 'Loose Papers' }));
-            toast('📌 Staple binding is only available for ≤50 sheets. Switched to Loose Papers.', {
+            toast('📌 Staple binding is only available for ≤50 sheets per copy. Switched to Loose Papers.', {
                 icon: '⚠️',
                 style: { borderRadius: '10px', background: '#333', color: '#fff' }
             });
@@ -345,7 +344,7 @@ const PrintPage = () => {
             } else if (opts.binding === 'Chart') {
                 docBindCharge = (isA3 ? 20 : 10) * (opts.bindingQuantity || 1);
             } else if (opts.binding === 'Staple') {
-                docBindCharge = (rules.additional?.staple_binding || 0.30) * docSheets;
+                docBindCharge = (rules.additional?.staple_binding || 0.30) * (opts.copies || 1);
             }
 
             totalPrintCharge += docPrintCharge;
@@ -650,13 +649,16 @@ const PrintPage = () => {
                             modal: {
                                 ondismiss: function () {
                                     setLoading(false);
+                                    toast.error("Payment cancelled. Your order has been held in My Orders.");
+                                    navigate('/my-orders');
                                 }
                             }
                         };
                         const rzp = new window.Razorpay(rzpOptions);
                         rzp.on('payment.failed', function (response) {
-                            toast.error(response.error.description || "Payment failed");
+                            toast.error("Payment failed: " + (response.error.description || "Unknown error") + ". Your order is held in My Orders.");
                             setLoading(false);
+                            navigate('/my-orders');
                         });
                         rzp.open();
                     } else {
@@ -707,7 +709,7 @@ const PrintPage = () => {
     const effectivePages = options.pagesPerSheet === 2 ? Math.ceil(totalPages / 2) : totalPages;
     const billingSheets = options.side === 'Double' ? Math.ceil(effectivePages / 2) : effectivePages;
     const totalBillingSheets = billingSheets * (options.copies || 1);
-    const canStaple = totalBillingSheets <= 50;
+    const canStaple = billingSheets <= 50;
 
 
     return (
@@ -813,7 +815,7 @@ const PrintPage = () => {
                                 </div>
                                 {(options.binding !== 'Loose Papers') && (
                                     <div className="flex justify-between text-text-muted">
-                                        <span>Binding {options.binding === 'Staple' ? `(${billingSheets * options.copies} sheets)` : `(${options.bindingQuantity}x)`}</span>
+                                        <span>Binding {options.binding === 'Staple' ? `(${options.copies} copies)` : `(${options.bindingQuantity}x)`}</span>
                                         <span>₹{pricing.binding.toFixed(2)}</span>
                                     </div>
                                 )}
@@ -1254,7 +1256,7 @@ const PrintPage = () => {
                                             type="button"
                                             onClick={() => canStaple && setOptions({ ...options, binding: 'Staple' })}
                                             disabled={!canStaple}
-                                            title={!canStaple ? `Staple only available for ≤50 sheets (current: ${totalBillingSheets})` : 'Staple Binding'}
+                                            title={!canStaple ? `Staple only available for ≤50 sheets per copy (current: ${billingSheets})` : 'Staple Binding'}
                                             className={`p-3 md:p-2 rounded-xl border-2 transition-all font-bold flex flex-col items-center gap-2 md:gap-1 group relative ${!canStaple
                                                 ? 'opacity-40 cursor-not-allowed bg-slate-50 border-slate-200'
                                                 : options.binding === 'Staple'
@@ -1267,7 +1269,7 @@ const PrintPage = () => {
                                                 <img src={assets.staple_icon} alt="Staple" className="w-full h-full object-contain" />
                                             </div>
                                             <span className="text-[11px] md:text-[10px] text-center">Staple</span>
-                                            {!canStaple && <span className="text-[8px] text-red-400">&gt;50 sheets</span>}
+                                            {!canStaple && <span className="text-[8px] text-red-400">&gt;50 sheets per copy</span>}
                                         </button>
                                         <button
                                             type="button"
