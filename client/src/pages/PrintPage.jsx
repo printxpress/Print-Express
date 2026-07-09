@@ -554,7 +554,11 @@ const PrintPage = () => {
                     if (isPdf && file.size > 10 * 1024 * 1024) {
                         const zip = new JSZip();
                         zip.file(file.name, file);
-                        const zipBlob = await zip.generateAsync({ type: 'blob' });
+                        const zipBlob = await zip.generateAsync({ 
+                            type: 'blob',
+                            compression: 'DEFLATE',
+                            compressionOptions: { level: 9 }
+                        });
                         if (zipBlob.size > 10 * 1024 * 1024) {
                             throw new Error(`The zip compression of ${file.name} is ${(zipBlob.size / (1024 * 1024)).toFixed(2)}MB, which still exceeds the 10MB limit. Please compress or split the PDF manually.`);
                         }
