@@ -559,12 +559,7 @@ export const cleanupOldFiles = async (req, res) => {
 // Get All Orders (Admin) : /api/order/all
 export const getAllOrders = async (req, res) => {
     try {
-        const orders = await Order.find({
-            $or: [
-                { 'payment.isPaid': true },
-                { 'payment.method': 'COD' }
-            ]
-        }).sort({ createdAt: -1 }).populate('userId', 'name phone');
+        const orders = await Order.find({}).sort({ createdAt: -1 }).populate('userId', 'name phone');
         res.json({ success: true, orders });
     } catch (error) {
         res.json({ success: false, message: error.message });
@@ -1262,5 +1257,46 @@ export const verifyRazorpayLink = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
+
+// Mark Order as Paid by Admin : /api/order/mark-paid/:orderId
+export const markOrderAsPaid = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.json({ success: false, message: "Order not found" });
+        }
+
+        order.payment.isPaid = true;
+        await order.save();
+
+        res.json({ success: true, message: "Order marked as paid successfully" });
+    } catch (error) {
+        console.error("Mark Paid Error:", error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// Mark All User Orders as Paid (Admin) : /api/order/mark-user-paid/:userId
+export const markUserOrdersAsPaid = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const result = await Order.updateMany(
+            { userId, 'payment.isPaid': false },
+            { $set: { 'payment.isPaid': true } }
+        );
+
+        res.json({ 
+            success: true, 
+            message: `Successfully marked ${result.modifiedCount} orders as paid` 
+        });
+    } catch (error) {
+        console.error("Mark User Paid Error:", error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+
 
 

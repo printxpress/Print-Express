@@ -167,8 +167,30 @@ const Customers = () => {
                                     <td className="p-4 text-right">
                                         <div className="font-semibold text-slate-800">₹{(customer.totalSpent || 0).toLocaleString()}</div>
                                         {customer.unpaidAmount > 0 && (
-                                            <div className="text-[10px] mt-1 inline-block bg-red-50 text-red-500 border border-red-200 px-2 py-0.5 rounded-full font-bold animate-pulse whitespace-nowrap">
-                                                Unpaid: ₹{customer.unpaidAmount.toLocaleString()}
+                                            <div className="mt-1 flex flex-col items-end gap-1">
+                                                <div className="text-[10px] inline-block bg-red-50 text-red-500 border border-red-200 px-2 py-0.5 rounded-full font-bold animate-pulse whitespace-nowrap">
+                                                    Unpaid: ₹{customer.unpaidAmount.toLocaleString()}
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (window.confirm(`Mark all unpaid orders of ${customer.name} as paid? (Total: ₹${customer.unpaidAmount.toLocaleString()})`)) {
+                                                            try {
+                                                                const { data } = await axios.post(`/api/order/mark-user-paid/${customer._id}`);
+                                                                if (data.success) {
+                                                                    toast.success("Marked customer orders as paid!");
+                                                                    fetchCustomers();
+                                                                } else {
+                                                                    toast.error(data.message || "Failed to update status");
+                                                                }
+                                                            } catch (err) {
+                                                                toast.error("Error updating status");
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="text-[9px] font-black bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded hover:bg-green-600 hover:text-white transition-all active:scale-95 cursor-pointer"
+                                                >
+                                                    Mark Paid ✅
+                                                </button>
                                             </div>
                                         )}
                                     </td>

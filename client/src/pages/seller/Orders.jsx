@@ -66,6 +66,9 @@ const Orders = () => {
         if (filter === 'completed') {
             return isCompleted;
         }
+        if (filter === 'unpaid') {
+            return !o.payment?.isPaid;
+        }
         // For 'all' or 'online', only show active orders
         return isActive;
     });
@@ -514,13 +517,13 @@ const Orders = () => {
                     )}
                 </div>
                 <div className="flex gap-4 border-b border-border pb-px w-full sm:w-auto">
-                    {['all', 'online', 'completed'].map((type) => (
+                    {['all', 'online', 'completed', 'unpaid'].map((type) => (
                         <button
                             key={type}
                             onClick={() => setFilter(type)}
                             className={`pb-2 px-2 text-sm font-bold capitalize transition-all relative ${filter === type ? 'text-primary' : 'text-text-muted hover:text-text-main'}`}
                         >
-                            {type === 'all' ? 'Active' : type === 'completed' ? 'Completed' : type} Orders
+                            {type === 'all' ? 'Active' : type === 'completed' ? 'Completed' : type === 'unpaid' ? 'Unpaid' : type} Orders
                             {filter === type && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full shadow-[0_-2px_8px_rgba(59,130,246,0.3)]"></div>}
                         </button>
                     ))}
@@ -788,6 +791,28 @@ const Orders = () => {
                                 </select>
                                 <button onClick={() => sendWANotification(order)} className="text-primary font-bold text-[10px] hover:underline">SEND STATUS WA 🔗</button>
                                 <button onClick={() => generateLinkAndWhatsApp(order)} className="text-green-600 font-bold text-[10px] hover:underline whitespace-nowrap">SEND BILL & PAY LINK 🏦</button>
+                                {!order.payment?.isPaid && (
+                                    <button 
+                                        onClick={async () => {
+                                            if (window.confirm(`Mark order #${order._id.toString().slice(-8).toUpperCase()} as paid?`)) {
+                                                try {
+                                                    const { data } = await axios.post(`/api/order/mark-paid/${order._id}`);
+                                                    if (data.success) {
+                                                        toast.success("Order marked as paid!");
+                                                        fetchOrders();
+                                                    } else {
+                                                        toast.error(data.message || "Failed to update status");
+                                                    }
+                                                } catch (err) {
+                                                    toast.error("Error updating payment status");
+                                                }
+                                            }
+                                        }}
+                                        className="mt-2 px-3 py-1.5 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 rounded hover:bg-green-600 hover:text-white transition-all active:scale-95 cursor-pointer"
+                                    >
+                                        Mark Paid ✅
+                                    </button>
+                                )}
                                 <button onClick={() => handleEditOrder(order)} className="mt-2 px-3 py-1 text-[10px] font-bold bg-slate-100 text-slate-700 rounded hover:bg-slate-200 transition-colors">Edit Options ⚙️</button>
                                 {(order.pricing?.walletUsed > 0 || order.pricing?.referralDiscount > 0) && (
                                     <button 
