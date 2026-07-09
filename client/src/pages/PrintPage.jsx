@@ -552,17 +552,16 @@ const PrintPage = () => {
 
                     // Zip PDFs that are larger than 10MB (10 * 1024 * 1024 bytes)
                     if (isPdf && file.size > 10 * 1024 * 1024) {
-                        try {
-                            const zip = new JSZip();
-                            zip.file(file.name, file);
-                            const zipBlob = await zip.generateAsync({ type: 'blob' });
-                            fileName = `${file.name.replace(/\.pdf$/i, '')}.zip`;
-                            uploadFile = new File([zipBlob], fileName, { type: 'application/zip' });
-                            fileType = 'application/zip';
-                            uploadType = 'raw';
-                        } catch (err) {
-                            console.error("Zipping error:", err);
+                        const zip = new JSZip();
+                        zip.file(file.name, file);
+                        const zipBlob = await zip.generateAsync({ type: 'blob' });
+                        if (zipBlob.size > 10 * 1024 * 1024) {
+                            throw new Error(`The zip compression of ${file.name} is ${(zipBlob.size / (1024 * 1024)).toFixed(2)}MB, which still exceeds the 10MB limit. Please compress or split the PDF manually.`);
                         }
+                        fileName = `${file.name.replace(/\.pdf$/i, '')}.zip`;
+                        uploadFile = new File([zipBlob], fileName, { type: 'application/zip' });
+                        fileType = 'application/zip';
+                        uploadType = 'raw';
                     }
 
                     const formData = new FormData();
