@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import toast from 'react-hot-toast';
+import JSZip from 'jszip';
 import PrintExpressLogo from '../components/PrintExpressLogo';
 import PrintingAnimation from '../components/PrintingAnimation';
 import { detectDocument, formatFileSize, getDocumentIcon } from '../utils/documentDetection';
@@ -543,13 +544,31 @@ const PrintPage = () => {
                     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dj6eyq4iz';
                     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'printexpress';
 
+                    let uploadFile = file;
+                    let fileName = file.name;
+                    let fileType = file.type;
+                    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+                    let uploadType = isPdf ? 'raw' : 'auto';
+
+                    // Zip PDFs that are larger than 10MB (10 * 1024 * 1024 bytes)
+                    if (isPdf && file.size > 10 * 1024 * 1024) {
+                        try {
+                            const zip = new JSZip();
+                            zip.file(file.name, file);
+                            const zipBlob = await zip.generateAsync({ type: 'blob' });
+                            fileName = `${file.name.replace(/\.pdf$/i, '')}.zip`;
+                            uploadFile = new File([zipBlob], fileName, { type: 'application/zip' });
+                            fileType = 'application/zip';
+                            uploadType = 'raw';
+                        } catch (err) {
+                            console.error("Zipping error:", err);
+                        }
+                    }
+
                     const formData = new FormData();
-                    formData.append('file', file);
+                    formData.append('file', uploadFile);
                     formData.append('upload_preset', uploadPreset); // Needs to be 'Unsigned' in Cloudinary Settings
                     formData.append('folder', 'print_orders');
-
-                    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
-                    const uploadType = isPdf ? 'raw' : 'auto';
 
                     const response = await fetch(
                         `https://api.cloudinary.com/v1_1/${cloudName}/${uploadType}/upload`,
@@ -569,8 +588,8 @@ const PrintPage = () => {
                     const meta = fileMetadata[index];
                     return {
                         url: result.secure_url,
-                        originalName: file.originalname || file.name,
-                        fileType: file.type,
+                        originalName: fileName,
+                        fileType: fileType,
                         pageCount: meta ? meta.pageCount : 1
                     };
                 })
