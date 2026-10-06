@@ -1,5 +1,6 @@
 import Order from '../models/Order.js';
 import User from '../models/User.js';
+import mongoose from 'mongoose';
 import Wallet from '../models/Wallet.js';
 import Pricing from '../models/Pricing.js';
 import Service from '../models/Service.js';
@@ -736,7 +737,20 @@ export const generateRazorpayLink = async (req, res) => {
 export const generateThermalBillPDF = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const order = await Order.findById(orderId).populate('userId');
+        let order = null;
+        if (mongoose.Types.ObjectId.isValid(orderId)) {
+            order = await Order.findById(orderId).populate('userId');
+        }
+        if (!order) {
+            order = await Order.findOne({ 
+                $or: [
+                    { displayId: orderId }, 
+                    { displayId: orderId?.toUpperCase() },
+                    { displayId: `#${orderId}` },
+                    { displayId: `#${orderId?.toUpperCase()}` }
+                ] 
+            }).populate('userId');
+        }
         if (!order) return res.json({ success: false, message: "Order not found" });
 
         const shop = await ShopSettings.findOne() || {
