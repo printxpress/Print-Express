@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useAppContext } from '../../context/AppContext'
 import toast from 'react-hot-toast'
 import logo from '../../assets/logo.png'
+import { mergePdfFiles, downloadPdfBlob, printPdfBlob } from '../../utils/pdfMerger'
 
 const getFullUrl = (url) => {
     if (!url) return '';
@@ -13,7 +14,7 @@ const getFullUrl = (url) => {
 };
 
 const Orders = () => {
-    const { axios, sellerRole } = useAppContext()
+    const { axios, sellerRole, navigate } = useAppContext()
     const [orders, setOrders] = useState([]);
     const [shopSettings, setShopSettings] = useState(null);
     const [filter, setFilter] = useState('all'); // all, online
@@ -349,10 +350,20 @@ const Orders = () => {
                 if (f.url) markFileAsDownloaded(f.url);
             });
         }
-        const loadingToast = toast.loading("Preparing files for download...");
+        const loadingToast = toast.loading("Preparing files for download in sequence...");
         try {
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
+            // Sort split files so Part 1, Part 2, Part 3 download in proper order
+            const sortedFiles = [...files].sort((a, b) => {
+                const aMatch = a?.originalName?.match(/-split(\d+)\.pdf$/i);
+                const bMatch = b?.originalName?.match(/-split(\d+)\.pdf$/i);
+                const aPart = a?.splitPart || (aMatch ? parseInt(aMatch[1], 10) : 0);
+                const bPart = b?.splitPart || (bMatch ? parseInt(bMatch[1], 10) : 0);
+                if (aPart && bPart) return aPart - bPart;
+                return 0;
+            });
+
+            for (let i = 0; i < sortedFiles.length; i++) {
+                const file = sortedFiles[i];
                 if (!file.url) continue;
                 const targetUrl = getFullUrl(file.url);
                 let blob;
@@ -377,6 +388,8 @@ const Orders = () => {
                     link.click();
                     link.remove();
                     window.URL.revokeObjectURL(downloadUrl);
+                    // Short stagger so browser preserves file order
+                    await new Promise(r => setTimeout(r, 300));
                 }
             }
             toast.dismiss(loadingToast);
@@ -385,6 +398,51 @@ const Orders = () => {
             toast.dismiss(loadingToast);
             console.error("Download all error:", error);
             toast.error("Failed to download all files. Please try again.");
+        }
+    };
+
+    const [mergingOrders, setMergingOrders] = useState({});
+
+    const handleMergeOrderSplits = async (order, mode = 'download') => {
+        if (!order || !Array.isArray(order.files)) return;
+        const splitFiles = order.files.filter(f => f.isSplit || f.parentFileName || /-split\d+\.pdf$/i.test(f.originalName || ''));
+        const filesToMerge = splitFiles.length > 0 ? splitFiles : order.files;
+        if (filesToMerge.length < 2) {
+            toast.error("Not enough files to merge");
+            return;
+        }
+
+        const orderId = order._id;
+        const shortId = orderId.toString().slice(-8).toUpperCase();
+        setMergingOrders(prev => ({ ...prev, [orderId]: true }));
+        const loadingToast = toast.loading(`Merging ${filesToMerge.length} parts for Order #${shortId}...`);
+
+        try {
+            const firstParent = filesToMerge[0].parentFileName || 'Document';
+            const cleanParent = firstParent.replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+            const outputName = `[MERGED]_Order_${shortId}_${cleanParent}.pdf`;
+
+            const result = await mergePdfFiles(filesToMerge, {
+                outputName,
+                axiosInstance: axios
+            });
+
+            markAsDownloaded(orderId);
+            toast.dismiss(loadingToast);
+
+            if (mode === 'download') {
+                downloadPdfBlob(result.blob, outputName);
+                toast.success(`Merged PDF downloaded (${result.totalPages} pages)! 🎉`);
+            } else {
+                printPdfBlob(result.blob, `Print Express - ${outputName}`);
+                toast.success(`Print preview launched for Order #${shortId}! 🖨️`);
+            }
+        } catch (error) {
+            toast.dismiss(loadingToast);
+            console.error("Merge error:", error);
+            toast.error("Failed to merge files: " + error.message);
+        } finally {
+            setMergingOrders(prev => ({ ...prev, [orderId]: false }));
         }
     };
 
@@ -404,6 +462,12 @@ const Orders = () => {
                     <p className="text-xs text-text-muted">View and manage online print and POS sales records</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => navigate('/seller/split-orders')}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                    >
+                        <span>✂️</span> Split Orders Hub
+                    </button>
                     <button onClick={fetchOrders} className="px-4 py-2 bg-white border border-border rounded-lg text-xs font-bold hover:bg-slate-50 transition-colors">Refresh 🔄</button>
                     <button className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold">Export CSV</button>
                 </div>
@@ -494,6 +558,33 @@ const Orders = () => {
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Split Orders Quick Hub Banner */}
+            <div className="bg-gradient-to-r from-indigo-950 via-purple-900 to-slate-900 rounded-2xl p-5 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-purple-500/20">
+                <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center text-xl border border-white/10">
+                        ✂️
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-bold font-outfit text-base">Large Document Split &amp; Auto-Merge Hub</h3>
+                            <span className="px-2 py-0.5 rounded-full bg-purple-400/20 text-purple-200 text-[10px] font-black uppercase tracking-wider border border-purple-400/30">
+                                Dedicated Hub
+                            </span>
+                        </div>
+                        <p className="text-xs text-slate-300 mt-0.5">
+                            Orders with split files &gt; 10 MB. Merge parts sequentially into 1 full PDF and print immediately.
+                        </p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => navigate('/seller/split-orders')}
+                    className="px-4 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-black text-xs shadow-md transition-all whitespace-nowrap flex items-center gap-1.5"
+                >
+                    <span>Open Split Orders Hub</span>
+                    <span>➔</span>
+                </button>
             </div>
 
             {/* Search Bar & Filter Options */}
@@ -624,26 +715,72 @@ const Orders = () => {
 
                         <div className="space-y-3 flex-1 border-l border-border pl-8">
                             <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">ORDER CONTENT</p>
+                            
+                            {/* Split Document Notice for Admin */}
+                            {order.files?.some(f => f?.isSplit || f?.originalName?.match(/-split\d+\.pdf$/i)) && (
+                                <div className="p-2.5 bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 border border-purple-200 rounded-xl space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[8px] bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                                            ✂️ SPLIT DOCUMENT ORDER
+                                        </span>
+                                        <span className="text-[11px] font-bold text-purple-900">
+                                            Contains files split for 10 MB limit
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
+                                        Files are displayed in proper sequential order (Part 1 ➔ Part 2 ➔ Part 3). Please print and bind them in sequence.
+                                    </p>
+                                </div>
+                            )}
+
                             <div className="space-y-4 text-sm">
-                                {Array.isArray(order.printOptions) ? order.printOptions.map((opt, optIdx) => (
+                                {Array.isArray(order.printOptions) ? order.printOptions.map((opt, optIdx) => {
+                                    const file = order.files[optIdx];
+                                    const isSplit = Boolean(file?.isSplit || file?.originalName?.match(/-split\d+\.pdf$/i));
+                                    const splitMatch = file?.originalName?.match(/-split(\d+)\.pdf$/i);
+                                    const partNum = file?.splitPart || (splitMatch ? parseInt(splitMatch[1], 10) : null);
+                                    const totalParts = file?.totalSplits;
+                                    const pageRange = file?.pageRange;
+                                    const parentName = file?.parentFileName;
+
+                                    return (
                                     <div 
                                         key={optIdx} 
                                         className={`p-3 rounded-lg space-y-2 transition-all duration-300 ${
-                                            downloadedFiles.includes(order.files[optIdx]?.url)
+                                            isSplit ? 'border-l-4 border-l-purple-600 ' : ''
+                                        } ${
+                                            downloadedFiles.includes(file?.url)
                                                 ? 'bg-gradient-to-br from-pink-500/5 via-purple-500/5 to-indigo-500/5 border-t-pink-500 border-r-purple-500 border-b-indigo-500 border-l-blue-500 border-[2px] shadow-[0_0_20px_rgba(168,85,247,0.45)] ring-1 ring-purple-500/20'
                                                 : 'bg-slate-50/50 border border-slate-100 hover:border-slate-300'
                                         }`}
                                     >
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="font-bold text-xs truncate max-w-[200px] text-slate-800 flex items-center gap-1.5" title={order.files[optIdx]?.originalName}>
-                                                    <span>📄 {order.files[optIdx]?.originalName || `File ${optIdx + 1}`}</span>
-                                                    {downloadedFiles.includes(order.files[optIdx]?.url) && (
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <p className="font-bold text-xs truncate max-w-[200px] text-slate-800 flex items-center gap-1.5" title={file?.originalName}>
+                                                        <span>📄 {file?.originalName || `File ${optIdx + 1}`}</span>
+                                                    </p>
+                                                    {isSplit && (
+                                                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[7px] font-black rounded uppercase tracking-wider shadow-sm">
+                                                            Part {partNum || optIdx + 1}{totalParts ? ` of ${totalParts}` : ''}
+                                                        </span>
+                                                    )}
+                                                    {pageRange && (
+                                                        <span className="px-1.5 py-0.5 bg-purple-100 text-purple-800 text-[8px] font-bold rounded">
+                                                            {pageRange}
+                                                        </span>
+                                                    )}
+                                                    {downloadedFiles.includes(file?.url) && (
                                                         <span className="px-2 py-0.5 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 text-white text-[7px] font-black rounded shadow-[0_0_8px_rgba(168,85,247,0.4)] border-none uppercase tracking-widest">
                                                             ✓ Viewed
                                                         </span>
                                                     )}
-                                                </p>
+                                                </div>
+                                                {isSplit && parentName && (
+                                                    <p className="text-[9px] text-purple-700 font-semibold mt-0.5">
+                                                        📁 Original Document: <span className="underline">{parentName}</span>
+                                                    </p>
+                                                )}
                                                 <p className="text-[9px] text-slate-400 font-medium mt-0.5">
                                                     Uploaded on {new Date(order.createdAt).toLocaleDateString()} by {order.userId?.name || 'Walk-in'}
                                                 </p>
@@ -739,12 +876,13 @@ const Orders = () => {
                                             )}
                                         </div>
                                     </div>
-                                )) : (
+                                    );
+                                }) : (
                                     <p className="font-medium text-red-500 italic">Legacy Order Format - Options Missing</p>
                                 )}
 
                                 {order.files?.length > 1 && (
-                                    <div className="pt-2 max-w-xs">
+                                    <div className="pt-2 max-w-xs space-y-1.5">
                                         <button 
                                             onClick={() => {
                                                 markAsDownloaded(order._id);
@@ -754,6 +892,37 @@ const Orders = () => {
                                         >
                                             📦 Download All ({order.files.length} Files)
                                         </button>
+
+                                        {order.files.some(f => f.isSplit || f.parentFileName || /-split\d+\.pdf$/i.test(f.originalName || '')) && (
+                                            <>
+                                                <button
+                                                    onClick={() => handleMergeOrderSplits(order, 'download')}
+                                                    disabled={mergingOrders[order._id]}
+                                                    className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white transition-all rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
+                                                >
+                                                    {mergingOrders[order._id] ? (
+                                                        <>⏳ Merging PDF...</>
+                                                    ) : (
+                                                        <>⚡ Merge & Download All Splits</>
+                                                    )}
+                                                </button>
+                                                <div className="flex gap-1.5">
+                                                    <button
+                                                        onClick={() => handleMergeOrderSplits(order, 'print')}
+                                                        disabled={mergingOrders[order._id]}
+                                                        className="flex-1 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-all rounded-lg text-[9px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shadow-2xs disabled:opacity-50"
+                                                    >
+                                                        🖨️ Merge & Print
+                                                    </button>
+                                                    <button
+                                                        onClick={() => navigate('/seller/split-orders')}
+                                                        className="flex-1 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all rounded-lg text-[9px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shadow-2xs"
+                                                    >
+                                                        ✂️ Split Hub ➔
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 )}
 
@@ -873,21 +1042,27 @@ const Orders = () => {
                             {/* Document Selector inside Modal */}
                             {editForm.length > 1 && (
                                 <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
-                                    {editForm.map((_, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => setEditingFileIndex(i)}
-                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border-2 transition-all whitespace-nowrap ${editingFileIndex === i ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-500 hover:border-blue-300'}`}
-                                        >
-                                            {editingOrder.files[i]?.originalName || `File ${i + 1}`}
-                                        </button>
-                                    ))}
+                                    {editForm.map((_, i) => {
+                                        const file = editingOrder.files[i];
+                                        const isSplit = Boolean(file?.isSplit || file?.originalName?.match(/-split\d+\.pdf$/i));
+                                        const splitMatch = file?.originalName?.match(/-split(\d+)\.pdf$/i);
+                                        const partNum = file?.splitPart || (splitMatch ? splitMatch[1] : null);
+                                        return (
+                                            <button
+                                                key={i}
+                                                onClick={() => setEditingFileIndex(i)}
+                                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border-2 transition-all whitespace-nowrap ${editingFileIndex === i ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-500 hover:border-blue-300'}`}
+                                            >
+                                                {isSplit ? `✂️ Part ${partNum}: ` : ''}{file?.originalName || `File ${i + 1}`}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             )}
 
                             <div className="space-y-5">
                                 <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full border border-blue-100 inline-block">
-                                    Editing: {editingOrder.files[editingFileIndex]?.originalName || `File ${editingFileIndex + 1}`}
+                                    Editing: {editingOrder.files[editingFileIndex]?.isSplit ? `✂️ Part ${editingOrder.files[editingFileIndex]?.splitPart}: ` : ''}{editingOrder.files[editingFileIndex]?.originalName || `File ${editingFileIndex + 1}`}
                                 </p>
 
                                 <div className="grid grid-cols-2 gap-4">

@@ -6,6 +6,8 @@ import JSZip from 'jszip';
 import PrintExpressLogo from '../components/PrintExpressLogo';
 import PrintingAnimation from '../components/PrintingAnimation';
 import { detectDocument, formatFileSize, getDocumentIcon } from '../utils/documentDetection';
+import FileSplitterModal from '../components/FileSplitterModal';
+import { isPdfFile, isOversized } from '../utils/pdfSplitter';
 import { assets } from '../assets/assets';
 
 const compressImage = (file, maxFileSize = 10 * 1024 * 1024) => {
@@ -236,6 +238,7 @@ const PrintPage = () => {
     const [loading, setLoading] = useState(false);
     const [processingFiles, setProcessingFiles] = useState(false);
     const [fileSizeErrorModal, setFileSizeErrorModal] = useState({ isOpen: false, fileName: '', fileSize: 0 });
+    const [splitterModal, setSplitterModal] = useState({ isOpen: false, file: null });
     const [fileUploadSuccessModal, setFileUploadSuccessModal] = useState({ isOpen: false, fileName: '', fileType: '', pageCount: 0 });
     const [pincodeLoading, setPincodeLoading] = useState(false);
     const [pincodeError, setPincodeError] = useState('');
@@ -443,15 +446,19 @@ const PrintPage = () => {
     };
 
     const handleFileChange = async (e) => {
-        const uploaded = Array.from(e.target.files);
-
+        const uploaded = Array.from(e.target.files || []);
+        if (uploaded.length === 0) return;
 
         setProcessingFiles(true);
         const validFiles = [];
         const metadata = [];
         const newOptions = [];
+        let oversizedPdfToSplit = null;
+
         for (let file of uploaded) {
             const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name);
+            const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+
             if (file.size > 10 * 1024 * 1024 && isImage) {
                 const toastId = toast.loading(`Compressing large image: ${file.name}...`);
                 file = await compressImage(file);
@@ -462,13 +469,19 @@ const PrintPage = () => {
             }
 
             if (file.size > 10 * 1024 * 1024) {
-                setFileSizeErrorModal({
-                    isOpen: true,
-                    fileName: file.name,
-                    fileSize: file.size
-                });
+                if (isPdf) {
+                    // Open our built-in Document Splitter for this large PDF!
+                    oversizedPdfToSplit = file;
+                } else {
+                    setFileSizeErrorModal({
+                        isOpen: true,
+                        fileName: file.name,
+                        fileSize: file.size
+                    });
+                }
                 continue;
             }
+
             const meta = await detectDocument(file);
             if (meta.isValid) {
                 validFiles.push(file);
@@ -488,10 +501,79 @@ const PrintPage = () => {
                 toast.error(`❌ ${file.name}: ${meta.error}`);
             }
         }
-        setFiles(prev => [...prev, ...validFiles]);
-        setFileMetadata(prev => [...prev, ...metadata]);
-        setDocumentsOptions(prev => [...prev, ...newOptions]);
+
+        if (validFiles.length > 0) {
+            setFiles(prev => [...prev, ...validFiles]);
+            setFileMetadata(prev => [...prev, ...metadata]);
+            setDocumentsOptions(prev => [...prev, ...newOptions]);
+        }
+
         setProcessingFiles(false);
+
+        if (oversizedPdfToSplit) {
+            setSplitterModal({
+                isOpen: true,
+                file: oversizedPdfToSplit
+            });
+            toast('File exceeds 10 MB limit. Document Splitter opened!', { icon: '✂️' });
+        }
+
+        if (e.target) {
+            e.target.value = '';
+        }
+    };
+
+    const handleApplySplits = (splitParts) => {
+        if (!splitParts || splitParts.length === 0) return;
+
+        const newFiles = [];
+        const newMeta = [];
+        const newOpts = [];
+
+        splitParts.forEach((part) => {
+            newFiles.push(part.file);
+            newMeta.push({
+                name: part.name,
+                size: part.size,
+                type: 'PDF',
+                subType: 'Split Part',
+                pageCount: part.pageCount,
+                isValid: true,
+                error: null,
+                previewURL: part.blobUrl || null,
+                isSplit: true,
+                parentFileName: part.originalParentName,
+                splitPart: part.partNumber,
+                totalSplits: part.totalParts,
+                pageRange: part.pageRange
+            });
+
+            const defaultOpts = getDefaultOptions();
+            if (part.pageCount === 1) {
+                defaultOpts.side = 'Single';
+            }
+            newOpts.push(defaultOpts);
+        });
+
+        setFiles(prev => [...prev, ...newFiles]);
+        setFileMetadata(prev => [...prev, ...newMeta]);
+        setDocumentsOptions(prev => [...prev, ...newOpts]);
+
+        toast.success(`Added ${splitParts.length} split files in sequence to your order! ✂️`);
+    };
+
+    const applySettingsToAllSplits = (parentFileName) => {
+        const currentOpt = documentsOptions[activeDocTab];
+        if (!currentOpt || !parentFileName) return;
+
+        setDocumentsOptions(prev => prev.map((opt, idx) => {
+            if (fileMetadata[idx]?.parentFileName === parentFileName) {
+                return { ...currentOpt };
+            }
+            return opt;
+        }));
+
+        toast.success(`Applied settings to all parts of "${parentFileName}"! 📋`);
     };
 
     const removeFile = (index) => {
@@ -593,7 +675,13 @@ const PrintPage = () => {
                         url: result.secure_url,
                         originalName: fileName,
                         fileType: fileType,
-                        pageCount: meta ? meta.pageCount : 1
+                        pageCount: meta ? meta.pageCount : 1,
+                        isSplit: Boolean(meta?.isSplit),
+                        parentFileName: meta?.parentFileName || null,
+                        splitPart: meta?.splitPart || null,
+                        totalSplits: meta?.totalSplits || null,
+                        pageRange: meta?.pageRange || null,
+                        fileSize: file.size
                     };
                 })
             );
@@ -814,7 +902,9 @@ const PrintPage = () => {
                                         return (
                                             <div key={i} className="bg-white rounded-lg p-3 border border-blue-100 space-y-2 shadow-sm">
                                                 <div className="flex justify-between items-start gap-2">
-                                                    <span className="text-[11px] font-bold truncate flex-1">{meta.name}</span>
+                                                    <span className="text-[11px] font-bold truncate flex-1">
+                                                        {meta.isSplit ? `✂️ Part ${meta.splitPart}: ${meta.name}` : meta.name}
+                                                    </span>
                                                     <span className="text-[11px] font-bold text-blue-700 whitespace-nowrap">₹{(documentPrices[i] || 0).toFixed(2)}</span>
                                                 </div>
                                                 <div className="grid grid-cols-1 gap-1 text-[10px] text-text-muted">
@@ -931,16 +1021,26 @@ const PrintPage = () => {
                                 ⚠️ Note: only upload pdf documents
                             </div>
 
-                            {/* File Size Warning Box */}
-                            <div className="p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-xl text-amber-900 text-sm space-y-1">
-                                <p className="font-bold flex items-center gap-2">
-                                    ⚠️ File Size Limit: 10 MB
-                                </p>
-                                <p className="leading-relaxed">
-                                    Maximum file size: <span className="font-semibold">10 MB</span>. Please upload files under 10 MB. If your file is larger, compress it using tools like{' '}
-                                    <a href="https://tinypng.com" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-700 transition-colors">TinyPNG</a>,{' '}
-                                    <a href="https://www.ilovepdf.com" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-700 transition-colors">iLovePDF</a>, or{' '}
-                                    <a href="https://www.freeconvert.com" target="_blank" rel="noopener noreferrer" className="underline font-semibold hover:text-amber-700 transition-colors">FreeConvert</a> before uploading.
+                            {/* File Size Limit & Splitter Banner */}
+                            <div className="p-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-2xl text-slate-800 text-sm space-y-2.5 shadow-sm">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="font-bold text-blue-900 flex items-center gap-2">
+                                        <span>⚡ File Upload Limit: 10 MB</span>
+                                        <span className="text-[10px] bg-blue-600 text-white font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                            Auto-Splitter Available
+                                        </span>
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSplitterModal({ isOpen: true, file: null })}
+                                        className="text-xs font-bold text-blue-700 bg-white hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-xl border border-blue-200 transition-all shadow-sm flex items-center gap-1.5"
+                                    >
+                                        ✂️ Open PDF Splitter
+                                    </button>
+                                </div>
+                                <p className="text-xs text-slate-600 leading-relaxed">
+                                    Files over 10 MB cannot be processed directly by cloud systems. 
+                                    <strong> Have a PDF larger than 10 MB?</strong> Just upload it or use the Splitter above, and our built-in <strong>Smart Document Splitter</strong> will automatically split it into ordered, high-quality parts (<span className="text-blue-700 font-bold">&lt; 10 MB</span> each) without losing any pages!
                                 </p>
                             </div>
 
@@ -974,7 +1074,7 @@ const PrintPage = () => {
                                     </div>
                                     <div className="grid grid-cols-1 gap-3">
                                         {fileMetadata.map((meta, i) => (
-                                            <div key={i} className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm border border-blue-100">
+                                            <div key={i} className={`flex items-center justify-between p-3 bg-white rounded-lg shadow-sm border ${meta.isSplit ? 'border-purple-200 border-l-4 border-l-purple-600' : 'border-blue-100'}`}>
                                                 <div className="flex items-center gap-3 flex-1 min-w-0">
                                                     <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center overflow-hidden border border-slate-100 flex-shrink-0">
                                                         {meta.previewURL ? (
@@ -984,11 +1084,29 @@ const PrintPage = () => {
                                                         )}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-semibold truncate">{meta.name}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-sm font-semibold truncate">{meta.name}</p>
+                                                            {meta.isSplit && (
+                                                                <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded text-[9px] font-black uppercase tracking-wider flex-shrink-0 shadow-sm">
+                                                                    Split {meta.splitPart}/{meta.totalSplits}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <div className="flex flex-wrap gap-2 text-[10px] text-text-muted mt-0.5">
                                                             <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100">{meta.type}</span>
-                                                            {meta.subType && (
-                                                                <span className="bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded border border-orange-100">{meta.subType}</span>
+                                                            {meta.isSplit ? (
+                                                                <>
+                                                                    <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded border border-purple-100 font-bold">
+                                                                        {meta.pageRange}
+                                                                    </span>
+                                                                    <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded truncate max-w-[160px]" title={meta.parentFileName}>
+                                                                        From: {meta.parentFileName}
+                                                                    </span>
+                                                                </>
+                                                            ) : (
+                                                                meta.subType && (
+                                                                    <span className="bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded border border-orange-100">{meta.subType}</span>
+                                                                )
                                                             )}
                                                             <span className="bg-slate-100 px-1.5 py-0.5 rounded">{meta.pageCount} pg</span>
                                                             <span className="bg-slate-100 px-1.5 py-0.5 rounded">{formatFileSize(meta.size)}</span>
@@ -1050,12 +1168,42 @@ const PrintPage = () => {
                                         >
                                             <span className="text-lg">{getDocumentIcon(meta.type, meta.subType)}</span>
                                             <div className="flex flex-col items-start leading-tight">
-                                                <span className="text-xs font-bold">{meta.name.length > 20 ? meta.name.slice(0, 17) + '...' : meta.name}</span>
-                                                <span className={`${activeDocTab === i ? 'text-blue-100' : 'text-slate-400'} text-[9px]`}>{meta.pageCount} pages</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs font-bold">{meta.name.length > 20 ? meta.name.slice(0, 17) + '...' : meta.name}</span>
+                                                    {meta.isSplit && (
+                                                        <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider ${activeDocTab === i ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'}`}>
+                                                            Part {meta.splitPart}/{meta.totalSplits}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className={`${activeDocTab === i ? 'text-blue-100' : 'text-slate-400'} text-[9px]`}>
+                                                    {meta.pageCount} pages {meta.isSplit ? `(${meta.pageRange})` : ''}
+                                                </span>
                                             </div>
                                         </button>
                                     ))}
                                 </div>
+
+                                {fileMetadata[activeDocTab]?.isSplit && (
+                                    <div className="p-3 bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 rounded-xl border border-purple-200 flex flex-wrap items-center justify-between gap-2 text-xs animate-in fade-in">
+                                        <div className="flex items-center gap-2">
+                                            <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded text-[10px] font-bold">
+                                                ✂️ Part {fileMetadata[activeDocTab].splitPart} of {fileMetadata[activeDocTab].totalSplits}
+                                            </span>
+                                            <span className="font-semibold text-slate-700">
+                                                {fileMetadata[activeDocTab].pageRange} of "{fileMetadata[activeDocTab].parentFileName}"
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => applySettingsToAllSplits(fileMetadata[activeDocTab].parentFileName)}
+                                            className="font-bold text-purple-700 hover:text-purple-900 bg-white hover:bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 transition-colors shadow-sm flex items-center gap-1"
+                                        >
+                                            📋 Apply this setting to all parts of this file
+                                        </button>
+                                    </div>
+                                )}
+
                                 <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1726,6 +1874,14 @@ const PrintPage = () => {
                     )}
                 </div>
             </div>
+
+            {/* File Splitter Modal for PDFs > 10 MB */}
+            <FileSplitterModal
+                isOpen={splitterModal.isOpen}
+                onClose={() => setSplitterModal({ isOpen: false, file: null })}
+                file={splitterModal.file}
+                onApplySplits={handleApplySplits}
+            />
 
             {/* Premium File Size Limit Modal */}
             {fileSizeErrorModal.isOpen && (

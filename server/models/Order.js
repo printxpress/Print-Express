@@ -6,7 +6,13 @@ const orderSchema = new mongoose.Schema({
         url: String,
         originalName: String,
         fileType: String,
-        pageCount: Number
+        pageCount: Number,
+        isSplit: { type: Boolean, default: false },
+        parentFileName: String,
+        splitPart: Number,
+        totalSplits: Number,
+        pageRange: String,
+        fileSize: Number
     }],
     printOptions: [{
         fileIndex: { type: Number, default: 0 },

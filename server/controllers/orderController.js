@@ -28,6 +28,7 @@ const getRazorpayInstance = () => {
 
 // ... existing imports ...
 import PDFDocument from 'pdfkit';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -731,6 +732,7 @@ export const generateRazorpayLink = async (req, res) => {
 }
 
 // Generate Thermal Bill PDF : /api/order/thermal-bill/:orderId
+// Generate Thermal Bill PDF : /api/order/thermal-bill/:orderId
 export const generateThermalBillPDF = async (req, res) => {
     try {
         const { orderId } = req.params;
@@ -746,256 +748,344 @@ export const generateThermalBillPDF = async (req, res) => {
         };
 
         // Create document with autoPageBreak disabled to have absolute layout control
-        const doc = new PDFDocument({ size: 'A4', margin: 50, autoPageBreak: false });
+        const doc = new PDFDocument({ size: 'A4', margin: 40, autoPageBreak: false });
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=invoice_${order.displayId || orderId.slice(-8)}.pdf`);
 
         doc.pipe(res);
 
-        // --- THEME COLOR TOKENS ---
-        const themeSlate = '#0f172a'; // Slate 900
-        const themeMuted = '#475569'; // Slate 600
-        const themeAccent = '#4f46e5'; // Indigo 600
+        // --- MODERN THEME COLOR TOKENS ---
+        const themeNavy = '#0f172a'; // Slate 900
+        const themeBlue = '#1d4ed8'; // Blue 700
+        const themeAccent = '#2563eb'; // Blue 600
+        const themeSlate = '#334155'; // Slate 700
+        const themeMuted = '#64748b'; // Slate 500
         const lightGray = '#f8fafc'; // Slate 50
-        const borderMuted = '#cbd5e1'; // Slate 300
         const borderLight = '#e2e8f0'; // Slate 200
-        
-        const isPaid = order.payment?.isPaid;
-        const bgStatus = isPaid ? '#d1fae5' : '#fee2e2';
-        const textStatus = isPaid ? '#065f46' : '#991b1b';
-        const borderStatus = isPaid ? '#a7f3d0' : '#fecaca';
+        const borderMuted = '#cbd5e1'; // Slate 300
 
-        // Helper to draw footer on any page
+        const isPaid = Boolean(order.payment?.isPaid);
+
+        // Helper to draw modern footer on any page
         const drawFooter = () => {
             const footerY = 745;
-            doc.moveTo(50, footerY - 10).lineTo(545, footerY - 10).strokeColor(borderLight).lineWidth(1).stroke();
-            doc.fillColor(themeSlate).fontSize(9).font('Helvetica-Bold').text('Thank you for choosing Print Express!', 50, footerY, { align: 'center', width: 495 });
-            doc.fontSize(8).font('Helvetica').fillColor(themeMuted);
-            doc.text('This is a computer-generated invoice and does not require a signature.', 50, footerY + 13, { align: 'center', width: 495 });
-            doc.fillColor(themeAccent).text('www.printexpress.in', 50, footerY + 25, { align: 'center', width: 495, link: 'https://printexpress.in' });
+            doc.moveTo(40, footerY).lineTo(555, footerY).strokeColor(borderLight).lineWidth(1).stroke();
+            doc.rect(40, footerY, 140, 2).fill(themeBlue);
+
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor(themeNavy).text('Thank you for choosing Print Express!', 40, footerY + 8, { align: 'center', width: 515 });
+            doc.font('Helvetica').fontSize(7.5).fillColor(themeMuted);
+            doc.text('AnbuDigital, Bengaluru Main Road, Thiruvalluvar Nagar, Chengam - 606701  •  Phone: +91 7603-957422', 40, footerY + 19, { align: 'center', width: 515 });
+            doc.fillColor(themeAccent).text('www.printexpress.in  •  support@printexpress.in', 40, footerY + 29, { align: 'center', width: 515, link: 'https://printexpress.in' });
+            doc.fontSize(6.5).fillColor('#94a3b8').text('This is an authenticated computer-generated tax invoice and does not require a physical signature.', 40, footerY + 40, { align: 'center', width: 515 });
         };
 
         // Helper to start a new page for overflow items
-        const startNewPage = (pageTitle = 'INVOICE (Continued)') => {
+        const startNewPage = (pageTitle = 'TAX INVOICE (Continued)') => {
             doc.addPage();
-            doc.rect(50, 35, 495, 4).fill(themeAccent);
-            doc.fillColor(themeSlate).fontSize(14).font('Helvetica-Bold').text(pageTitle, 50, 55);
+            doc.rect(40, 24, 515, 3).fill(themeBlue);
+            doc.fillColor(themeNavy).fontSize(14).font('Helvetica-Bold').text(pageTitle, 40, 42);
             
-            const newTableTop = 80;
-            doc.rect(50, newTableTop, 495, 20).fill(themeSlate);
+            const newTableTop = 70;
+            doc.roundedRect(40, newTableTop, 515, 23, 4).fill(themeNavy);
             doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(8);
-            doc.text('Description', 60, newTableTop + 6);
-            doc.text('Pages', 240, newTableTop + 6, { width: 60, align: 'center' });
-            doc.text('Copies', 300, newTableTop + 6, { width: 60, align: 'center' });
-            doc.text('Category / Options', 360, newTableTop + 6, { width: 90, align: 'center' });
-            doc.text('Amount', 460, newTableTop + 6, { width: 80, align: 'right' });
+            doc.text('#', 50, newTableTop + 7, { width: 20 });
+            doc.text('DOCUMENT / DESCRIPTION', 75, newTableTop + 7, { width: 185 });
+            doc.text('PRINT SPECIFICATIONS', 265, newTableTop + 7, { width: 115 });
+            doc.text('PAGES', 385, newTableTop + 7, { width: 45, align: 'center' });
+            doc.text('COPIES', 435, newTableTop + 7, { width: 40, align: 'center' });
+            doc.text('AMOUNT', 480, newTableTop + 7, { width: 65, align: 'right' });
             
             drawFooter();
-            return newTableTop + 20;
+            return newTableTop + 23;
         };
 
         // --- FIRST PAGE DESIGN ---
-        // Top accent
-        doc.rect(50, 35, 495, 4).fill(themeAccent);
+        // 1. Top Decorative Brand Bar
+        doc.rect(40, 24, 515, 3).fill(themeBlue);
 
-        // Logo / Brand
+        // 2. Logo (Clean, prominent, no background clipping box)
         const logoPath = path.join(__dirname, '../assets/logo.png');
-        try {
-            // Draw a dark background block so that white/transparent logo text (like "Express") is fully visible
-            doc.roundedRect(45, 48, 140, 42, 6).fill(themeSlate);
-            doc.image(logoPath, 50, 52, { width: 130 });
-        } catch (error) {
-            doc.fontSize(22).fillColor(themeSlate).font('Helvetica-Bold').text('PRINT', 50, 55, { continued: true })
-               .fillColor(themeAccent).text('EXPRESS');
-            doc.fontSize(8).fillColor(themeMuted).font('Helvetica-Oblique').text(shop.tagline || 'Quality at Speed', 50, 78);
-        }
-
-        // Title
-        doc.fillColor(themeSlate).fontSize(26).font('Helvetica-Bold').text('INVOICE', 350, 50, { align: 'right' });
-        
-        // Status Pill
-        doc.rect(465, 82, 80, 18).fillAndStroke(bgStatus, borderStatus);
-        doc.fillColor(textStatus).fontSize(9).font('Helvetica-Bold').text(isPaid ? 'PAID' : 'UNPAID', 465, 87, { width: 80, align: 'center' });
-
-        // Metadata Card (Faint slate bg with rounded corners)
-        doc.roundedRect(50, 115, 495, 48, 6).fill('#f8fafc');
-        
-        const metaY = 123;
-        doc.fontSize(9).font('Helvetica').fillColor(themeMuted);
-        doc.text('Invoice Date:', 70, metaY);
-        doc.font('Helvetica-Bold').fillColor(themeSlate).text(new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }), 70, metaY + 13);
-
-        doc.font('Helvetica').fillColor(themeMuted).text('Order Reference:', 210, metaY);
-        doc.font('Helvetica-Bold').fillColor(themeAccent).text(`#${order.displayId || order._id.toString().slice(-8).toUpperCase()}`, 210, metaY + 13, {
-            link: `https://printexpress.in/order/${order._id}`
-        });
-
-        doc.font('Helvetica').fillColor(themeMuted).text('Payment Details:', 350, metaY);
-        const payMethod = order.payment?.method || 'UPI / Online';
-        doc.font('Helvetica-Bold').fillColor(themeSlate).text(payMethod, 350, metaY + 13);
-        if (order.payment?.razorpayPaymentId) {
-            doc.font('Helvetica').fontSize(8).fillColor(themeAccent).text(`ID: ${order.payment.razorpayPaymentId}`, 350, metaY + 24);
-        }
-
-        // --- SOLD BY / BILL TO SECTION (Y: 175 - 280) ---
-        const addressY = 175;
-        const addressHeight = 102;
-
-        // Draw elegant modern card containers
-        doc.roundedRect(50, addressY, 235, addressHeight, 8).fillAndStroke('#f8fafc', '#e2e8f0');
-        doc.roundedRect(310, addressY, 235, addressHeight, 8).fillAndStroke('#f8fafc', '#e2e8f0');
-
-        // SOLD BY Text inside Card
-        doc.fillColor(themeAccent).fontSize(8).font('Helvetica-Bold').text('SOLD BY', 65, addressY + 10);
-        doc.fillColor(themeSlate).fontSize(9).font('Helvetica-Bold').text(shop.name, 65, addressY + 22);
-        doc.fillColor(themeMuted).font('Helvetica').fontSize(8).text(shop.address, 65, addressY + 34, { width: 205, lineGap: 1.5 });
-        doc.text(`Phone: ${shop.phone}`, 65, doc.y + 1);
-        if (shop.gstNumber) doc.text(`GST: ${shop.gstNumber}`, 65, doc.y + 1);
-
-        // BILL TO Text inside Card
-        doc.fillColor(themeAccent).fontSize(8).font('Helvetica-Bold').text('BILL TO', 325, addressY + 10);
-        doc.fillColor(themeSlate).fontSize(9).font('Helvetica-Bold').text(order.userId?.name || 'Walk-in Customer', 325, addressY + 22);
-        
-        let destinationText = '';
-        if (order.fulfillment?.method === 'pickup') {
-            doc.fillColor(themeAccent).font('Helvetica-Bold').fontSize(8).text('STORE PICKUP', 325, addressY + 34);
-            let loc = order.fulfillment.pickupLocation || '';
-            if (!loc || loc.includes('Coimbatore')) {
-                loc = 'Print Express\nAnbuDigital, Bengaluru Main road\nThiruvalluvar Nagar, Chengam 606701';
-            }
-            doc.fillColor(themeMuted).font('Helvetica').fontSize(8).text(loc, 325, addressY + 45, { width: 205, lineGap: 1.5 });
+        if (fs.existsSync(logoPath)) {
+            doc.image(logoPath, 40, 34, { fit: [175, 75] });
         } else {
-            const addr = order.deliveryDetails;
-            if (addr?.address) {
-                destinationText = addr.address;
-                const cityState = [addr.dist, addr.state].filter(Boolean).join(', ');
-                const pin = addr.pincode ? ` - ${addr.pincode}` : '';
-                if (cityState || pin) destinationText += `\n${cityState}${pin}`;
-            }
-            doc.fillColor(themeMuted).font('Helvetica').fontSize(8).text(destinationText, 325, addressY + 34, { width: 205, lineGap: 1.5 });
+            doc.fontSize(22).fillColor(themeNavy).font('Helvetica-Bold').text('PRINT', 40, 45, { continued: true })
+               .fillColor(themeAccent).text('EXPRESS');
+            doc.fontSize(8).fillColor(themeMuted).font('Helvetica-Oblique').text(shop.tagline || 'Your Ideas, Delivered Fast', 40, 70);
         }
-        doc.text(`Phone: ${order.deliveryDetails?.phone || order.userId?.phone || 'N/A'}`, 325, doc.y + 1);
 
-        // --- ITEMS TABLE ---
-        const tableTop = 295;
-        doc.rect(50, tableTop, 495, 24).fill(themeSlate);
-        doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(9);
-        doc.text('Description', 60, tableTop + 8);
-        doc.text('Pages', 240, tableTop + 8, { width: 60, align: 'center' });
-        doc.text('Copies', 300, tableTop + 8, { width: 60, align: 'center' });
-        doc.text('Category / Options', 360, tableTop + 8, { width: 90, align: 'center' });
-        doc.text('Amount', 460, tableTop + 8, { width: 80, align: 'right' });
+        // 3. Invoice Header (Right Side)
+        doc.font('Helvetica-Bold').fontSize(24).fillColor(themeNavy).text('TAX INVOICE', 320, 36, { align: 'right', width: 235 });
+
+        const displayIdStr = `#${order.displayId || order._id.toString().slice(-8).toUpperCase()}`;
+        doc.font('Helvetica').fontSize(9).fillColor(themeMuted).text('Invoice No: ', 320, 64, { align: 'right', width: 155 });
+        doc.font('Helvetica-Bold').fontSize(10).fillColor(themeBlue).text(displayIdStr, 480, 64, { align: 'right', width: 75 });
+
+        const formattedDate = new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+        doc.font('Helvetica').fontSize(8.5).fillColor(themeMuted).text(`Date: ${formattedDate}`, 320, 78, { align: 'right', width: 235 });
+
+        // Status Badge (Rendered with vector graphics - clean & sharp)
+        const pillX = 465, pillY = 93, pillW = 90, pillH = 19;
+        if (isPaid) {
+            doc.roundedRect(pillX, pillY, pillW, pillH, 9.5).fillAndStroke('#ecfdf5', '#86efac');
+            doc.circle(pillX + 13, pillY + 9.5, 5).fill('#16a34a');
+            doc.moveTo(pillX + 10.5, pillY + 9.5).lineTo(pillX + 12.5, pillY + 11.5).lineTo(pillX + 15.5, pillY + 7.5).strokeColor('#ffffff').lineWidth(1.2).stroke();
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#065f46').text('PAID', pillX + 22, pillY + 5, { width: 62, align: 'center' });
+        } else {
+            doc.roundedRect(pillX, pillY, pillW, pillH, 9.5).fillAndStroke('#fffbeb', '#fcd34d');
+            doc.circle(pillX + 13, pillY + 9.5, 5).fill('#d97706');
+            doc.moveTo(pillX + 13, pillY + 6.5).lineTo(pillX + 13, pillY + 10.5).strokeColor('#ffffff').lineWidth(1.2).stroke();
+            doc.circle(pillX + 13, pillY + 12.5, 0.8).fill('#ffffff');
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#92400e').text('UNPAID', pillX + 22, pillY + 5, { width: 62, align: 'center' });
+        }
+
+        // Subtle Header Divider
+        doc.moveTo(40, 118).lineTo(555, 118).strokeColor(borderLight).lineWidth(1).stroke();
+
+        // 4. SOLD BY / BILL TO CARDS (Y: 126 to 220)
+        const cardY = 126, cardH = 94, cardW = 250;
+
+        // Sold By Card
+        doc.roundedRect(40, cardY, cardW, cardH, 7).fillAndStroke(lightGray, borderLight);
+        doc.roundedRect(50, cardY + 8, 65, 13, 3).fill('#eff6ff');
+        doc.font('Helvetica-Bold').fontSize(7).fillColor(themeBlue).text('SOLD BY', 50, cardY + 11, { width: 65, align: 'center' });
+
+        doc.font('Helvetica-Bold').fontSize(9.5).fillColor(themeNavy).text(shop.name || 'Print Express', 50, cardY + 25);
+        
+        const cleanStoreAddr = (shop.address || 'AnbuDigital, Bengaluru Main Road, Chengam - 606701')
+            .split('\n')
+            .map(s => s.trim().replace(/,\s*$/, ''))
+            .filter(Boolean)
+            .join(', ');
+        doc.font('Helvetica').fontSize(7.5).fillColor(themeSlate).text(cleanStoreAddr, 50, cardY + 39, { width: 230, lineGap: 1.5 });
+        doc.font('Helvetica').fontSize(7.5).fillColor(themeSlate).text(`Phone: ${shop.phone || '+91 7603-957422'}`, 50, cardY + 68);
+        doc.fillColor(themeMuted).text(`Email: ${shop.email || 'support@printexpress.in'}`, 50, cardY + 79);
+
+        // Bill To Card
+        doc.roundedRect(305, cardY, cardW, cardH, 7).fillAndStroke(lightGray, borderLight);
+        doc.roundedRect(315, cardY + 8, 65, 13, 3).fill('#eff6ff');
+        doc.font('Helvetica-Bold').fontSize(7).fillColor(themeBlue).text('BILLED TO', 315, cardY + 11, { width: 65, align: 'center' });
+
+        doc.font('Helvetica-Bold').fontSize(9.5).fillColor(themeNavy).text(order.userId?.name || 'Walk-in Customer', 315, cardY + 25);
+
+        // Fulfillment Badge
+        if (order.fulfillment?.method === 'pickup') {
+            doc.roundedRect(315, cardY + 38, 95, 12, 3).fill('#f3e8ff');
+            doc.font('Helvetica-Bold').fontSize(6.5).fillColor('#7e22ce').text('STORE PICKUP', 315, cardY + 40.5, { width: 95, align: 'center' });
+
+            let pickupLoc = order.fulfillment.pickupLocation || '';
+            if (!pickupLoc || pickupLoc.includes('Coimbatore')) {
+                pickupLoc = 'Print Express, Chengam Store Location';
+            }
+            doc.font('Helvetica').fontSize(7.5).fillColor(themeSlate).text(pickupLoc, 315, cardY + 54, { width: 230, lineGap: 1.5 });
+        } else {
+            const courier = order.deliveryDetails?.courierPartner ? ` (${order.deliveryDetails.courierPartner})` : '';
+            doc.roundedRect(315, cardY + 38, 120, 12, 3).fill('#eff6ff');
+            doc.font('Helvetica-Bold').fontSize(6.5).fillColor(themeBlue).text(`HOME DELIVERY${courier}`, 315, cardY + 40.5, { width: 120, align: 'center' });
+
+            const addr = order.deliveryDetails;
+            let dest = addr?.address || 'Delivery Address Provided';
+            const cityState = [addr?.district || addr?.dist, addr?.state].filter(Boolean).join(', ');
+            const pin = addr?.pincode ? ` - ${addr.pincode}` : '';
+            if (cityState || pin) dest += `, ${cityState}${pin}`;
+
+            const cleanDest = dest.split('\n').map(s => s.trim().replace(/,\s*$/, '')).filter(Boolean).join(', ');
+            doc.font('Helvetica').fontSize(7.5).fillColor(themeSlate).text(cleanDest, 315, cardY + 54, { width: 230, lineGap: 1.5 });
+        }
+        doc.font('Helvetica').fontSize(7.5).fillColor(themeSlate).text(`Phone: ${order.deliveryDetails?.phone || order.userId?.phone || 'N/A'}`, 315, cardY + 76);
+
+        // 5. Order Information Strip
+        const stripY = 226;
+        doc.roundedRect(40, stripY, 515, 24, 4).fillAndStroke('#f1f5f9', '#e2e8f0');
+        doc.font('Helvetica').fontSize(8).fillColor(themeMuted);
+        
+        const payMethodStr = order.payment?.method || 'Online';
+        const fulfillStr = order.fulfillment?.method === 'pickup' ? 'Store Pickup' : 'Courier Delivery';
+        const hasSplit = order.files?.some(f => f?.isSplit || f?.originalName?.match(/-split\d+\.pdf$/i));
+        const totalUnitsStr = `${order.files?.length || 1} Document${(order.files?.length || 1) > 1 ? 's' : ''}${hasSplit ? ' (Split Parts)' : ''}`;
+
+        doc.text('Order Ref: ', 50, stripY + 7, { continued: true })
+           .font('Helvetica-Bold').fillColor(themeNavy).text(displayIdStr, { continued: true })
+           .font('Helvetica').fillColor(themeMuted).text('   |   Payment: ', { continued: true })
+           .font('Helvetica-Bold').fillColor(themeNavy).text(payMethodStr, { continued: true })
+           .font('Helvetica').fillColor(themeMuted).text('   |   Fulfillment: ', { continued: true })
+           .font('Helvetica-Bold').fillColor(themeNavy).text(fulfillStr, { continued: true })
+           .font('Helvetica').fillColor(themeMuted).text('   |   Total Units: ', { continued: true })
+           .font('Helvetica-Bold').fillColor(themeNavy).text(totalUnitsStr);
+
+        // 6. Items Table
+        const tableY = 258;
+        doc.roundedRect(40, tableY, 515, 23, 4).fill(themeNavy);
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#ffffff');
+        doc.text('#', 50, tableY + 7, { width: 20 });
+        doc.text('DOCUMENT / DESCRIPTION', 75, tableY + 7, { width: 185 });
+        doc.text('PRINT SPECIFICATIONS', 265, tableY + 7, { width: 115 });
+        doc.text('PAGES', 385, tableY + 7, { width: 45, align: 'center' });
+        doc.text('COPIES', 435, tableY + 7, { width: 40, align: 'center' });
+        doc.text('AMOUNT', 480, tableY + 7, { width: 65, align: 'right' });
 
         drawFooter(); // Draw footer on page 1
 
-        const bindingOpts = Array.isArray(order.printOptions) ? order.printOptions : [order.printOptions];
-        const hasBinding = bindingOpts.some(o => o?.binding && o.binding !== 'Loose Papers');
-        
-        // Determine typography parameters
-        const rowHeight = 22;
-        const fontSize = 8;
-        const page1MaxY = 730;
-        const pageNMaxY = 730;
-
-        let currentY = tableTop + 24;
+        const rowHeight = 28;
+        const pageMaxY = 650;
+        let currentY = tableY + 23;
         let globalIndex = 0;
 
-        // Draw items
+        const optionsArray = Array.isArray(order.printOptions) ? order.printOptions : [order.printOptions];
+
+        // Draw Document Rows
         order.files.forEach((file, idx) => {
-            // Check if we need a page break
-            if (currentY + rowHeight > page1MaxY) {
+            if (currentY + rowHeight > pageMaxY) {
                 currentY = startNewPage();
             }
 
-            const opts = Array.isArray(order.printOptions) ? (order.printOptions[idx] || order.printOptions[0]) : order.printOptions;
-            
-            if (globalIndex % 2 === 1) {
-                doc.rect(50, currentY, 495, rowHeight).fill(lightGray);
+            const opts = optionsArray[idx] || optionsArray[0] || {};
+            const isAlt = globalIndex % 2 === 1;
+
+            if (isAlt) {
+                doc.rect(40, currentY, 515, rowHeight).fill(lightGray);
+            }
+            doc.moveTo(40, currentY + rowHeight).lineTo(555, currentY + rowHeight).strokeColor('#f1f5f9').lineWidth(0.8).stroke();
+
+            // Index
+            doc.font('Helvetica').fontSize(8).fillColor(themeMuted).text((idx + 1).toString(), 50, currentY + 6);
+
+            // Document Name & Split Part Subtitle
+            const fileName = file.originalName?.length > 40 ? file.originalName.slice(0, 37) + '...' : (file.originalName || `Document ${idx + 1}`);
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor(themeNavy).text(fileName, 75, currentY + 5, { width: 185 });
+
+            const isSplitPart = Boolean(file.isSplit || file.originalName?.match(/-split\d+\.pdf$/i));
+            if (isSplitPart) {
+                const match = file.originalName?.match(/-split(\d+)\.pdf$/i);
+                const partNum = file.splitPart || (match ? match[1] : idx + 1);
+                const totalSplitsStr = file.totalSplits ? ` of ${file.totalSplits}` : '';
+                const rangeStr = file.pageRange ? ` (${file.pageRange})` : '';
+                doc.font('Helvetica-Bold').fontSize(7).fillColor('#7c3aed').text(`Split Part ${partNum}${totalSplitsStr}${rangeStr}`, 75, currentY + 16, { width: 185 });
             }
 
-            doc.fillColor(themeSlate).fontSize(fontSize);
-            const fileName = file.originalName.length > 40 ? file.originalName.slice(0, 37) + '...' : file.originalName;
-            const textY = currentY + (rowHeight - fontSize) / 2 - 1;
-            
-            doc.font('Helvetica-Bold').text(fileName, 60, textY, { width: 175 });
-            doc.font('Helvetica').text(opts?.pageRangeType || 'All', 240, textY, { width: 60, align: 'center' });
-            doc.text((opts?.copies || 1).toString(), 300, textY, { width: 60, align: 'center' });
-            doc.text(`${opts?.mode || 'B/W'} ${opts?.side || 'Sngl'}`, 360, textY, { width: 90, align: 'center' });
+            // Print Specifications
+            const mode = opts.mode || 'B/W';
+            const side = opts.side ? `${opts.side} Sided` : 'Single Sided';
+            const size = opts.paperSize || 'A4';
+            const pps = opts.pagesPerSheet === 2 ? ' • 2 Pgs/Sheet' : '';
+            doc.font('Helvetica').fontSize(7.5).fillColor(themeSlate).text(`${mode} • ${side} • ${size}${pps}`, 265, currentY + 10, { width: 115 });
 
-            const fileCharge = opts?.price || (order.pricing.printingCharge / order.files.length);
-            doc.font('Helvetica-Bold').text(`Rs. ${Number(fileCharge).toFixed(2)}`, 460, textY, { width: 80, align: 'right' }).font('Helvetica');
+            // Pages
+            const pagesCount = opts.pageRangeType === 'Custom' ? (opts.customPages || 'Custom') : `${file.pageCount || 1} pgs`;
+            doc.fontSize(8).text(pagesCount, 385, currentY + 10, { width: 45, align: 'center' });
+
+            // Copies
+            doc.text(`${opts.copies || 1} Copy`, 435, currentY + 10, { width: 40, align: 'center' });
+
+            // Amount
+            const fileCharge = opts.price || (order.pricing?.printingCharge ? order.pricing.printingCharge / order.files.length : 0);
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor(themeNavy).text(`Rs. ${Number(fileCharge).toFixed(2)}`, 480, currentY + 10, { width: 65, align: 'right' });
 
             currentY += rowHeight;
             globalIndex++;
         });
 
         // Draw Binding Row (if applicable)
-        if (hasBinding && order.pricing.bindingCharge > 0) {
-            if (currentY + rowHeight > page1MaxY) {
+        const hasBinding = optionsArray.some(o => o?.binding && o.binding !== 'Loose Papers');
+        if (hasBinding && (order.pricing?.bindingCharge > 0)) {
+            if (currentY + rowHeight > pageMaxY) {
                 currentY = startNewPage();
             }
 
-            const bindTypes = [...new Set(bindingOpts.filter(o => o?.binding && o.binding !== 'Loose Papers').map(o => o.binding))];
-            const textY = currentY + (rowHeight - fontSize) / 2 - 1;
-            
-            if (globalIndex % 2 === 1) {
-                doc.rect(50, currentY, 495, rowHeight).fill(lightGray);
+            const bindTypes = [...new Set(optionsArray.filter(o => o?.binding && o.binding !== 'Loose Papers').map(o => o.binding))];
+            const isAlt = globalIndex % 2 === 1;
+
+            if (isAlt) {
+                doc.rect(40, currentY, 515, rowHeight).fill(lightGray);
             }
-            doc.fontSize(fontSize).font('Helvetica-Bold').fillColor(themeSlate).text(`Binding Finishing (${bindTypes.join(', ')})`, 60, textY);
-            doc.text(`Rs. ${order.pricing.bindingCharge.toFixed(2)}`, 460, textY, { width: 80, align: 'right' }).font('Helvetica');
-            
+            doc.moveTo(40, currentY + rowHeight).lineTo(555, currentY + rowHeight).strokeColor('#f1f5f9').lineWidth(0.8).stroke();
+
+            doc.font('Helvetica').fontSize(8).fillColor(themeMuted).text((globalIndex + 1).toString(), 50, currentY + 8);
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor(themeNavy).text(`Binding & Finishing (${bindTypes.join(', ')})`, 75, currentY + 8);
+            doc.font('Helvetica').fontSize(7.5).fillColor(themeMuted).text('Professional booklet finishing', 265, currentY + 8, { width: 115 });
+            doc.text('—', 385, currentY + 8, { width: 45, align: 'center' });
+            doc.text('—', 435, currentY + 8, { width: 40, align: 'center' });
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor(themeNavy).text(`Rs. ${order.pricing.bindingCharge.toFixed(2)}`, 480, currentY + 8, { width: 65, align: 'right' });
+
             currentY += rowHeight;
+            globalIndex++;
         }
 
-        // Table Bottom border
-        doc.moveTo(50, currentY).lineTo(545, currentY).strokeColor(borderMuted).stroke();
+        // Table Bottom Border
+        doc.moveTo(40, currentY).lineTo(555, currentY).strokeColor(borderMuted).lineWidth(1).stroke();
 
-        // --- SUMMARY SECTION ---
-        const summaryHeight = 110;
-        // Check if summary fits on current page
-        if (currentY + summaryHeight > page1MaxY) {
+        // 7. Summary & Payment Breakdown Section
+        const summaryHeight = 115;
+        if (currentY + summaryHeight > pageMaxY) {
             currentY = startNewPage();
         }
 
-        currentY += 12;
-        const summaryX = 320;
-        const amountX = 460;
+        const summaryY = currentY + 16;
 
-        doc.fontSize(9).fillColor(themeMuted);
+        // Left Side: Transaction & Guarantee Card
+        doc.roundedRect(40, summaryY, 250, 102, 6).fillAndStroke(lightGray, borderLight);
+        doc.font('Helvetica-Bold').fontSize(8).fillColor(themeNavy).text('PAYMENT & ORDER STATUS', 52, summaryY + 10);
+        doc.font('Helvetica').fontSize(7.5).fillColor(themeSlate);
+        doc.text('Payment Mode:', 52, summaryY + 24, { continued: true }).font('Helvetica-Bold').text(` ${payMethodStr}`);
         
-        doc.font('Helvetica').text('Print Subtotal:', summaryX, currentY);
-        doc.font('Helvetica-Bold').fillColor(themeSlate).text(`Rs. ${(order.pricing.printingCharge + order.pricing.bindingCharge).toFixed(2)}`, amountX, currentY, { width: 80, align: 'right' });
+        const txnId = order.payment?.transactionId || order.payment?.razorpayPaymentId || order.displayId || orderId.slice(-8).toUpperCase();
+        doc.font('Helvetica').text('Transaction Ref:', 52, summaryY + 37, { continued: true }).font('Helvetica-Bold').text(` ${txnId}`);
+        doc.font('Helvetica').text('Fulfillment Method:', 52, summaryY + 50, { continued: true }).font('Helvetica-Bold').text(` ${fulfillStr}`);
 
-        currentY += 14;
-        doc.font('Helvetica').fillColor(themeMuted).text('Delivery Fees:', summaryX, currentY);
-        doc.font('Helvetica-Bold').fillColor(themeSlate).text(`Rs. ${order.pricing.deliveryCharge.toFixed(2)}`, amountX, currentY, { width: 80, align: 'right' });
+        // Verified seal badge
+        doc.roundedRect(50, summaryY + 67, 230, 24, 4).fillAndStroke('#f0fdf4', '#bbf7d0');
+        doc.circle(62, summaryY + 79, 4.5).fill('#16a34a');
+        doc.moveTo(60, summaryY + 79).lineTo(61.5, summaryY + 80.5).lineTo(64.5, summaryY + 77.5).strokeColor('#ffffff').lineWidth(1).stroke();
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#15803d').text('Authenticated & Verified Print Express Invoice', 72, summaryY + 75);
 
-        if (order.pricing.couponDiscount > 0) {
-            currentY += 14;
-            doc.font('Helvetica').fillColor('#ea580c').text('Coupon Savings:', summaryX, currentY);
-            doc.font('Helvetica-Bold').text(`-Rs. ${order.pricing.couponDiscount.toFixed(2)}`, amountX, currentY, { width: 80, align: 'right' });
+        // Right Side: Financial Calculation Table
+        const fLabelX = 315, fValX = 470, fValW = 75;
+        let fY = summaryY;
+
+        const subtotal = (order.pricing?.printingCharge || 0);
+        doc.font('Helvetica').fontSize(8.5).fillColor(themeMuted).text('Print Subtotal:', fLabelX, fY);
+        doc.font('Helvetica-Bold').fillColor(themeNavy).text(`Rs. ${subtotal.toFixed(2)}`, fValX, fY, { width: fValW, align: 'right' });
+
+        fY += 14;
+        const bindCharge = order.pricing?.bindingCharge || 0;
+        doc.font('Helvetica').fillColor(themeMuted).text('Binding Charges:', fLabelX, fY);
+        doc.font('Helvetica-Bold').fillColor(themeNavy).text(`Rs. ${bindCharge.toFixed(2)}`, fValX, fY, { width: fValW, align: 'right' });
+
+        fY += 14;
+        const delCharge = order.pricing?.deliveryCharge || 0;
+        doc.font('Helvetica').fillColor(themeMuted).text('Delivery Fees:', fLabelX, fY);
+        doc.font('Helvetica-Bold').fillColor(themeNavy).text(`Rs. ${delCharge.toFixed(2)}`, fValX, fY, { width: fValW, align: 'right' });
+
+        if (order.pricing?.couponDiscount > 0) {
+            fY += 14;
+            doc.font('Helvetica').fillColor('#ea580c').text('Coupon Savings:', fLabelX, fY);
+            doc.font('Helvetica-Bold').fillColor('#ea580c').text(`-Rs. ${order.pricing.couponDiscount.toFixed(2)}`, fValX, fY, { width: fValW, align: 'right' });
         }
 
-        if (order.pricing.walletUsed > 0) {
-            currentY += 14;
-            doc.font('Helvetica').fillColor(themeAccent).text('Wallet Applied:', summaryX, currentY);
-            doc.font('Helvetica-Bold').text(`-Rs. ${order.pricing.walletUsed.toFixed(2)}`, amountX, currentY, { width: 80, align: 'right' });
+        if (order.pricing?.referralDiscount > 0) {
+            fY += 14;
+            doc.font('Helvetica').fillColor('#ea580c').text('Referral Credits Applied:', fLabelX, fY);
+            doc.font('Helvetica-Bold').fillColor('#ea580c').text(`-Rs. ${order.pricing.referralDiscount.toFixed(2)}`, fValX, fY, { width: fValW, align: 'right' });
         }
 
-        // Total payable block
-        currentY += 20;
-        doc.rect(310, currentY - 8, 235, 34).fill(themeSlate);
-        doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(12);
-        doc.text('TOTAL PAYABLE:', 325, currentY + 4);
-        doc.fontSize(13).text(`Rs. ${order.pricing.totalAmount.toFixed(2)}`, amountX, currentY + 3, { width: 80, align: 'right' });
+        if (order.pricing?.walletUsed > 0) {
+            fY += 14;
+            doc.font('Helvetica').fillColor(themeAccent).text('Wallet Balance Applied:', fLabelX, fY);
+            doc.font('Helvetica-Bold').fillColor(themeAccent).text(`-Rs. ${order.pricing.walletUsed.toFixed(2)}`, fValX, fY, { width: fValW, align: 'right' });
+        }
+
+        // Grand Total Card
+        fY += 18;
+        doc.roundedRect(305, fY, 250, 36, 6).fill(themeNavy);
+        doc.font('Helvetica-Bold').fontSize(10).fillColor('#ffffff').text('TOTAL PAYABLE:', 320, fY + 12);
+        doc.fontSize(14).text(`Rs. ${(order.pricing?.totalAmount || 0).toFixed(2)}`, 440, fY + 10, { width: 105, align: 'right' });
 
         doc.end();
     } catch (error) {
         console.error("PDF Gen Error:", error);
         res.json({ success: false, message: error.message });
     }
-}
+};
 
 // Update Order Status (Admin) : /api/order/update-status
 export const updateOrderStatus = async (req, res) => {

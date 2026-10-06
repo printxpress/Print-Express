@@ -18,6 +18,7 @@ import SellerLayout from './pages/seller/SellerLayout';
 import AddProduct from './pages/seller/AddProduct';
 import ProductList from './pages/seller/ProductList';
 import Orders from './pages/seller/Orders';
+import SplitOrders from './pages/seller/SplitOrders';
 import Dashboard from './pages/seller/Dashboard';
 import PrintPage from './pages/PrintPage';
 import POSMode from './pages/seller/POSMode';
@@ -70,6 +71,7 @@ const App = () => {
             <Route path='dashboard' element={sellerRole === 'billing_manager' ? <BillingDashboard /> : <Dashboard />} />
             <Route path='billing-dashboard' element={<BillingDashboard />} />
             <Route path='orders' element={<Orders />} />
+            <Route path='split-orders' element={<SplitOrders />} />
             <Route path='services' element={<ManageServices />} />
             <Route path='pricing' element={<PricingRules />} />
             <Route path='delivery' element={<DeliveryZones />} />

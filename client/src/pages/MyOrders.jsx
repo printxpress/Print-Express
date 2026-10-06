@@ -133,9 +133,16 @@ const MyOrders = () => {
                                         {Array.isArray(order.printOptions) ? order.printOptions.map((opt, optIdx) => (
                                             <div key={optIdx} className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
                                                 <div className="flex justify-between items-baseline">
-                                                    <p className="text-[11px] font-bold text-slate-800 truncate flex-1 pr-2" title={order.files[optIdx]?.originalName}>
-                                                        {order.files[optIdx]?.originalName || `Document ${optIdx + 1}`}
-                                                    </p>
+                                                    <div className="flex items-center gap-1.5 flex-1 pr-2 truncate">
+                                                        <p className="text-[11px] font-bold text-slate-800 truncate" title={order.files[optIdx]?.originalName}>
+                                                            {order.files[optIdx]?.originalName || `Document ${optIdx + 1}`}
+                                                        </p>
+                                                        {(order.files[optIdx]?.isSplit || order.files[optIdx]?.originalName?.match(/-split\d+\.pdf$/i)) && (
+                                                            <span className="px-1.5 py-0.2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[7px] font-black rounded uppercase tracking-wider flex-shrink-0">
+                                                                Part {order.files[optIdx]?.splitPart || (order.files[optIdx]?.originalName?.match(/-split(\d+)\.pdf$/i)?.[1] || optIdx + 1)}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {opt.price > 0 && (
                                                         <span className="text-[10px] font-black text-green-600">₹{opt.price.toFixed(2)}</span>
                                                     )}
@@ -163,7 +170,14 @@ const MyOrders = () => {
                                         {order.files.map((file, fIdx) => (
                                             <div key={fIdx} className="flex items-center gap-3 p-2 bg-bg rounded-lg border border-border/50 shadow-sm">
                                                 <span className="text-lg">📄</span>
-                                                <span className="text-xs truncate font-medium flex-1">{file.originalName}</span>
+                                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                                    <span className="text-xs truncate font-medium">{file.originalName}</span>
+                                                    {(file.isSplit || file.originalName?.match(/-split\d+\.pdf$/i)) && (
+                                                        <span className="px-1.5 py-0.2 bg-purple-100 text-purple-700 text-[8px] font-bold rounded flex-shrink-0">
+                                                            Part {file.splitPart || (file.originalName?.match(/-split(\d+)\.pdf$/i)?.[1] || fIdx + 1)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 {file.url ? (
                                                      <div className="flex gap-2">
                                                          <a href={file.url} target="_blank" rel="noreferrer" className="bg-blue-600 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-blue-700 transition-colors">VIEW</a>

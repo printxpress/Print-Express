@@ -19,6 +19,7 @@ const SellerLayout = () => {
     const sidebarLinks = [
         { name: "Dashboard", path: "/seller", icon: "🏠", roles: ['admin', 'billing_manager'] },
         { name: "Print Orders", path: "/seller/orders", icon: "🖨️", roles: ['admin', 'billing_manager'] },
+        { name: "Split Orders", path: "/seller/split-orders", icon: "✂️", roles: ['admin', 'billing_manager'] },
         { name: "Customers", path: "/seller/customers", icon: "👥", roles: ['admin', 'billing_manager'] },
         { name: "Analytics", path: "/seller/analytics", icon: "📊", roles: ['admin'], key: 'analytics' },
         { name: "Services", path: "/seller/services", icon: "📄", roles: ['admin'], key: 'services' },
@@ -76,6 +77,9 @@ const SellerLayout = () => {
                         <p className="text-sm font-bold">{sellerRole === 'billing_manager' ? 'Billing Manager' : 'Print Admin'}</p>
                     </div>
                     <div className="flex items-center gap-3">
+                        <Link to="/seller/split-orders" className="py-2 px-3 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-600 hover:text-white border border-purple-200 text-xs font-black flex items-center gap-1.5 transition-all shadow-2xs">
+                            <span>✂️</span> <span>Split Orders</span>
+                        </Link>
                         <button onClick={() => setShowCleanUp(true)} className="btn-outline border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 py-2 px-3 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">
                             <span>🧹</span> Clean Up
                         </button>
